@@ -175,8 +175,6 @@ button {
     transition: background-color 0.2s;
 }
 
-
-
 button:focus,
 button:hover {
     background-color: var(--framer-color-tint-dark);
