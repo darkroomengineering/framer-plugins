@@ -54,8 +54,110 @@ export function App() {
     }, [])
 
     const sync = async () => {
-        console.log("handleContentfulSync")
+        console.log("sync")
         try {
+            const collection = await framer.getManagedCollection()
+            const spaceId = await collection.getPluginData("spaceId")
+            const response = await fetch(`https://boards-api.greenhouse.io/v1/boards/${spaceId}/jobs?content=true`)
+            const data = await response.json()
+
+            // https://developers.greenhouse.io/job-board.html#jobs
+            // Update fields
+            await collection.setFields([
+                {
+                    id: "title",
+                    name: "title",
+                    type: "string",
+                },
+                {
+                    id: "updated_at",
+                    name: "updated_at",
+                    type: "string",
+                },
+                {
+                    id: "location",
+                    name: "location",
+                    type: "string",
+                },
+                {
+                    id: "absolute_url",
+                    name: "url",
+                    type: "link",
+                },
+                {
+                    id: "content",
+                    name: "content",
+                    type: "formattedText",
+                },
+                // TODO: add offices and departments (extra collections)
+                // {
+                //     id: "office",
+                //     name: "office",
+                //     type: "collectionReference",
+                //     collectionId: "offices",
+                // },
+                // {
+                //     id: "department",
+                //     name: "department",
+                //     type: "collectionReference",
+                //     collectionId: "departments",
+                // },
+                // extra fields from Greenhouse
+                {
+                    id: "internal_job_id",
+                    name: "internal_job_id",
+                    type: "string",
+                },
+                {
+                    id: "requisition_id",
+                    name: "requisition_id",
+                    type: "string",
+                },
+                {
+                    id: "metadata",
+                    name: "metadata",
+                    type: "string",
+                },
+                {
+                    id: "data_compliance",
+                    name: "data_compliance",
+                    type: "string",
+                },
+            ])
+
+            const jobs = data.jobs.map(
+                (job: {
+                    id: number
+                    title: string
+                    updated_at: string
+                    location: { name: string }
+                    absolute_url: string
+                    content: string
+                    internal_job_id: number
+                    requisition_id: number
+                    metadata: object
+                    data_compliance: object
+                }) => ({
+                    id: String(job.id),
+                    slug: String(job.id),
+                    fieldData: {
+                        title: job?.title,
+                        updated_at: job?.updated_at,
+                        location: job?.location?.name,
+                        absolute_url: job?.absolute_url,
+                        content: job?.content,
+                        internal_job_id: String(job?.internal_job_id),
+                        requisition_id: String(job?.requisition_id),
+                        metadata: job?.metadata ? JSON.stringify(job?.metadata) : "",
+                        data_compliance: job?.data_compliance ? JSON.stringify(job?.data_compliance) : "",
+                    },
+                })
+            )
+
+            await collection.addItems(jobs)
+
+            console.log("data", data.jobs)
+
             // await framer.setPluginData("contentful:collections", "")
 
             // In sync mode, we're already in a specific collection
@@ -98,7 +200,11 @@ export function App() {
             // await collection.addItems(mappedCollection.items)
 
             framer.notify("Collection synchronized successfully", { variant: "success" })
-            framer.closePlugin()
+
+            if (process.env.NODE_ENV !== "development") {
+                // keep logs in dev
+                framer.closePlugin()
+            }
         } catch (error) {
             console.error("Failed to sync collection:", error)
             framer.notify(`Failed to sync collection, ${error instanceof Error ? error.message : "Unknown error"}`, {
@@ -122,6 +228,8 @@ export function App() {
 
             const collection = await framer.getManagedCollection()
             await collection.setPluginData("spaceId", spaceId)
+
+            await sync()
 
             // initContentful(contentfulConfig)
 
@@ -167,26 +275,26 @@ export function App() {
         }
     }
 
-    const importContentType = async (contentTypeId: string) => {
-        setIsLoading(true)
-        try {
-            // console.log("Importing contentful data for content type ID:", contentTypeId)
+    // const importContentType = async (contentTypeId: string) => {
+    //     setIsLoading(true)
+    //     try {
+    //         // console.log("Importing contentful data for content type ID:", contentTypeId)
 
-            // const collection = await framer.getManagedCollection()
-            // await collection.setPluginData("contentTypeId", contentTypeId)
+    //         // const collection = await framer.getManagedCollection()
+    //         // await collection.setPluginData("contentTypeId", contentTypeId)
 
-            await sync()
-        } catch (error) {
-            console.error("Failed to import collection:", error)
-            if (error instanceof Error) {
-                framer.notify(`Import failed: ${error.message}`, { variant: "error" })
-            } else {
-                framer.notify("Failed to import collection", { variant: "error" })
-            }
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    //         await sync()
+    //     } catch (error) {
+    //         console.error("Failed to import collection:", error)
+    //         if (error instanceof Error) {
+    //             framer.notify(`Import failed: ${error.message}`, { variant: "error" })
+    //         } else {
+    //             framer.notify("Failed to import collection", { variant: "error" })
+    //         }
+    //     } finally {
+    //         setIsLoading(false)
+    //     }
+    // }
 
     return (
         <div className="export-collection">
