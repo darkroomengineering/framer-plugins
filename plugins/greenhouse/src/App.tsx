@@ -156,7 +156,7 @@ export function App() {
 
             await collection.addItems(jobs)
 
-            console.log("data", data.jobs)
+            console.log(data.jobs)
 
             // await framer.setPluginData("contentful:collections", "")
 
