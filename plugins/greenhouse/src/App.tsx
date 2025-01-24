@@ -54,7 +54,7 @@ export function App() {
     }, [])
 
     const sync = async () => {
-        console.log("sync")
+        console.log("sync it")
         try {
             const collection = await framer.getManagedCollection()
             const spaceId = await collection.getPluginData("spaceId")
