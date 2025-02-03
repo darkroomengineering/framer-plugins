@@ -14,7 +14,11 @@
         "@contentful/rich-text-html-renderer": "^17.0.0",
         "classnames": "^2.5.1",
         "contentful": "^11.4.3",
+<<<<<<< HEAD
         "framer-plugin": "^2.1.0",
+=======
+        "framer-plugin": "^2.0.4",
+>>>>>>> 3f6b406 (css)
         "react": "^18",
         "react-dom": "^18",
         "react-intersection-observer": "^9.15.1",
@@ -26,12 +30,18 @@
         "@typescript-eslint/eslint-plugin": "^7",
         "@typescript-eslint/parser": "^7",
         "@vitejs/plugin-react-swc": "^3",
+<<<<<<< HEAD
         "autoprefixer": "^10.4.19",
         "eslint": "^8",
         "eslint-plugin-react-hooks": "^4",
         "eslint-plugin-react-refresh": "^0",
         "postcss": "^8.4.39",
         "tailwindcss": "3.4.4",
+=======
+        "eslint": "^8",
+        "eslint-plugin-react-hooks": "^4",
+        "eslint-plugin-react-refresh": "^0",
+>>>>>>> 3f6b406 (css)
         "typescript": "^5.3.3",
         "vite": "^5",
         "vite-plugin-framer": "^1.0.1"
