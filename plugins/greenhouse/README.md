@@ -1,4 +1,4 @@
-# Framer Plugin Template
+# Greenhouse Plugin
 
 This is a template for using the Framer Plugin API in a TypeScript project.
 
