@@ -1,335 +1,103 @@
-import { ContentType } from "contentful"
-import { CollectionItem, framer, ManagedCollectionField } from "framer-plugin"
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { initContentful, getContentTypes, getEntriesForContentType, getContentType } from "./contentful"
-import { Auth } from "./components/auth"
-import { ContentTypePicker } from "./components/content-type-picker"
-import { Fields } from "./components/fields"
-import { mapContentfulValueToFramerValue } from "./utils"
-import { ExtendedManagedCollectionField, getFramerFieldFromContentfulField } from "./utils"
+import { framer } from "framer-plugin"
+import { useEffect, useRef, useState } from "react"
+import { createClient } from "contentful-management"
 
 export function App() {
-    const [isLoading, setIsLoading] = useState(true)
-    const [contentfulConfig, setContentfulConfig] = useState({
-        space: "",
-        accessToken: "",
-    })
-    const [contentTypes, setContentTypes] = useState<ContentType[]>([])
-    const [isAuthenticated, setIsAuthenticated] = useState(false) // contentful space and access token are set and valid
-    const [contentType, setContentType] = useState<ContentType | null>(null)
-    const [isMounted, setIsMounted] = useState(false)
+    useEffect(() => {
+        framer.showUI({
+            width: 300,
+            height: 300,
+        })
+    }, [])
+
+    const pollInterval = useRef()
+
+    const pollForTokens = readKey => {
+        // Clear any previous interval timers, one may already exist
+        // if this function was invoked multiple times.
+        if (pollInterval.current) {
+            clearInterval(pollInterval.current)
+        }
+
+        return new Promise(resolve => {
+            pollInterval.current = setInterval(async () => {
+                const response = await fetch(`https://localhost:8787/poll?readKey=${readKey}`, { method: "POST" })
+
+                if (response.status === 200) {
+                    const tokens = await response.json()
+
+                    clearInterval(pollInterval.current)
+                    resolve(tokens)
+                }
+            }, 2500)
+        })
+    }
+
+    const [tokens, setTokens] = useState(null)
+
+    const login = async () => {
+        // Retrieve the authorization URL & set of unique read/write keys
+        const response = await fetch("https://localhost:8787/authorize", {
+            method: "POST",
+        })
+        if (response.status !== 200) return
+
+        const authorize = await response.json()
+        // https://be.contentful.com/oauth/authorize?response_type=token&client_id=NSVZbJDKXl3ISvKCHQOAd5a7pupbS4KT-EmTgGO6wGo&redirect_uri=https%3A%2F%2Flocalhost%3A8787%2Fredirect&response_type=code&access_type=online&include_granted_scopes=true&scope=content_management_read&state=146a6485e23d7f7c40a3765906bda00b
+        // https://be.contentful.com/oauth/authorize?client_id=NSVZbJDKXl3ISvKCHQOAd5a7pupbS4KT-EmTgGO6wGo&redirect_uri=https%3A%2F%2Flocalhost%3A8787%2Fredirect&response_type=code&access_type=online&include_granted_scopes=true&scope=content_management_read&state=b5d7b6c1dd4d12eb237174e474bbde2c
+
+        console.log(authorize)
+
+        // return
+        // Open up the provider's login window.
+        window.open(authorize.url)
+
+        // return
+
+        // While the user is logging in, poll the backend with the
+        // read key. On successful login, tokens will be returned.
+        const tokens = await pollForTokens(authorize.readKey)
+
+        // Store tokens in local storage to keep the user logged in.
+        window.localStorage.setItem("tokens", JSON.stringify(tokens))
+
+        // Update the component state.
+        setTokens(tokens)
+    }
 
     useEffect(() => {
-        async function cache() {
-            const collectionsList = await framer.getPluginData("contentful:collections")
-            const collections = collectionsList ? JSON.parse(collectionsList) : {}
-            const framerCollections = await framer.getCollections()
+        // Check for tokens on first load.
+        const serializedTokens = window.localStorage.getItem("tokens")
+        if (!serializedTokens) return
 
-            // delete collections that are not in framer
-            Object.entries(collections).forEach(([key, value]) => {
-                if (!framerCollections.find(({ id }) => id === value?.id)) {
-                    delete collections[key]
-                }
-            })
-
-            await framer.setPluginData("contentful:collections", JSON.stringify(collections))
-
-            const contentTypeId = contentType?.sys?.id
-
-            if (!contentTypeId) return
-
-            const collection = await framer.getManagedCollection()
-
-            collections[contentTypeId] = collection
-            await framer.setPluginData("contentful:collections", JSON.stringify(collections))
-        }
-
-        if (contentType) {
-            cache()
-        }
-    }, [contentType])
-
-    const fieldsRef = useRef<{ reset: () => void } | null>(null)
-
-    const hasTriggeredSyncRef = useRef(false)
-
-    useLayoutEffect(() => {
-        async function prefill() {
-            const contentfulConfig = await framer.getPluginData("contentful")
-            if (contentfulConfig) {
-                setContentfulConfig(JSON.parse(contentfulConfig))
-            }
-        }
-
-        prefill()
+        const tokens = JSON.parse(serializedTokens)
+        setTokens(tokens)
     }, [])
 
-    useLayoutEffect(() => {
-        async function configure() {
-            setIsLoading(true)
+    useEffect(() => {
+        if (!tokens) return
 
-            const collection = await framer.getManagedCollection()
+        const fetchSpaces = async () => {
+            console.log(tokens.access_token)
 
-            const credentials = await collection.getPluginData("contentful")
-
-            if (credentials) {
-                initContentful(JSON.parse(credentials))
-
-                const contentTypes = await fetchContentTypes()
-                setContentTypes(contentTypes)
-                setIsAuthenticated(true)
-
-                const contentTypeId = await collection.getPluginData("contentTypeId")
-                const contentType = contentTypes.find(ct => ct.sys.id === contentTypeId)
-                if (contentType) {
-                    setContentType(contentType)
-                }
-            }
-
-            setIsLoading(false)
-        }
-
-        if (framer.mode === "syncManagedCollection") {
-            // When in sync mode, don't show UI
-            if (!hasTriggeredSyncRef.current) {
-                sync()
-                hasTriggeredSyncRef.current = true
-            }
-        } else {
-            try {
-                configure().then(() => {
-                    setTimeout(() => {
-                        setIsMounted(true)
-                    }, 0)
-                })
-
-            } catch (error) {
-                console.error("Failed to configure Contentful plugin:", error)
-                framer.notify("Failed to configure Contentful plugin", { variant: "error" })
-            }
-        }
-    }, [])
-
-    const sync = async () => {
-        const collection = await framer.getManagedCollection()
-        const fields = await collection.getFields()
-        const slugFieldId = await collection.getPluginData("slugFieldId")
-        const contentTypeId = await collection.getPluginData("contentTypeId")
-
-        if (!slugFieldId || !contentTypeId) {
-            return
-        }
-
-        const credentials = await collection.getPluginData("contentful")
-        if (credentials) {
-            initContentful(JSON.parse(credentials))
-        }
-
-        const contentType = await getContentType(contentTypeId)
-
-        const existingMappedContentType = fields.map(framerField => {
-            return {
-                ...framerField,
-                field: contentType.fields.find(field => field.id === framerField.id),
-            }
-        })
-
-        let mappedContentType = await Promise.all(
-            contentType.fields.map(async field => {
-                const framerField = await getFramerFieldFromContentfulField(field)
-
-                return {
-                    ...framerField,
-                    field,
-                    defaultType: framerField.type,
-                    collectionId: framerField.collectionId,
-                }
+            const client = createClient({
+                accessToken: tokens.access_token,
             })
-        )
 
-        mappedContentType = mappedContentType
-            .map(field => {
-                const existingField = existingMappedContentType.find(existingField => existingField.id === field.id)
-
-                if (existingField) {
-                    field = { ...field, ...existingField }
-                }
-
-                if (!existingField) {
-                    field.isDisabled = true
-                }
-
-                return field
-            })
-            .filter(field => field.isDisabled !== true)
-
-        const entries = await getEntriesForContentType(contentTypeId)
-
-        const mappedEntries = entries.map(entry => {
-            return {
-                id: entry.sys.id,
-                slug: entry.fields[slugFieldId ?? ""],
-                fieldData: Object.fromEntries(
-                    Object.entries(entry.fields)
-                        .filter(([id]) => mappedContentType.some(field => field.id === id))
-                        .map(([id, value]) => {
-                            const framerField = mappedContentType.find(field => field.id === id)
-
-                            if (!framerField) {
-                                return [id, value]
-                            }
-
-                            // @ts-expect-error Can't find the right type for the value
-                            const mappedValue = mapContentfulValueToFramerValue(value, framerField)
-
-                            return [id, mappedValue]
-                        })
-                ),
-            }
-        })
-
-        const existingEntriesIds = await collection.getItemIds()
-
-        // const entriesToBeAdded = mappedEntries.filter(entry => !existingEntriesIds.includes(entry.id))
-        const entriesToBeRemoved = existingEntriesIds.filter(id => !mappedEntries.some(entry => entry.id === id))
-        const order = entries.map(entry => entry.sys.id)
-
-        await collection.addItems(mappedEntries as CollectionItem[])
-        await collection.removeItems(entriesToBeRemoved)
-        await collection.setItemOrder(order)
-        // }
-
-        // try {
-        // } catch (error) {
-        //     console.error("Failed to sync collection:", error)
-        //     framer.notify(`Failed to sync collection, ${error instanceof Error ? error.message : "Unknown error"}`, {
-        //         variant: "error",
-        //     })
-        // }
-
-        framer.closePlugin()
-    }
-
-    const onSubmitPickContentType = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        setIsLoading(true)
-
-        const contentTypeId = (event.target as HTMLFormElement).contentType.value
-
-        const contentType = contentTypes.find(ct => ct.sys.id === contentTypeId)
-
-        if (!contentType) {
-            // throw new Error("Content type not found")
-            framer.notify("Content type not found", { variant: "error" })
-            return
+            client
+                .getSpaces()
+                .then(response => console.log(response.items))
+                .catch(console.error)
         }
 
-        const collection = await framer.getManagedCollection()
-        await collection.setPluginData("contentTypeId", contentTypeId)
+        fetchSpaces()
+    }, [tokens])
 
-        setContentType(contentType)
-
-        setIsLoading(false)
-    }
-
-    const fetchContentTypes = async () => {
-        const contentTypes = await getContentTypes()
-
-        // Filter out content types with no entries
-        const contentTypesWithEntries = await Promise.all(
-            contentTypes.map(async contentType => {
-                const entries = await getEntriesForContentType(contentType.sys.id)
-                return entries.length > 0 ? contentType : null
-            })
-        )
-
-        return contentTypesWithEntries.filter((ct): ct is NonNullable<typeof ct> => ct !== null)
-    }
-
-    const onSubmitAuth = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        setIsLoading(true)
-
-        try {
-            initContentful(contentfulConfig)
-
-            // Store the content type ID and Contentful credentials for future syncs
-
-            framer.setPluginData("contentful", JSON.stringify(contentfulConfig))
-
-            const collection = await framer.getManagedCollection()
-            collection.setPluginData("contentful", JSON.stringify(contentfulConfig))
-
-            const contentTypesWithEntries = await fetchContentTypes()
-
-            setContentTypes(contentTypesWithEntries)
-            setIsAuthenticated(true)
-        } catch (error) {
-            framer.notify("Failed to connect to Contentful", { variant: "error" })
-            console.error("Failed to connect to Contentful", error)
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const onSubmitFields = async (
-        slugFieldId: string | null,
-        filteredMappedContentType: ExtendedManagedCollectionField[] | undefined
-    ) => {
-        if (!slugFieldId || !filteredMappedContentType) {
-            return
-        }
-
-        setIsLoading(true)
-
-        const collection = await framer.getManagedCollection()
-        collection.setPluginData("slugFieldId", slugFieldId)
-
-        // const fields = await collection.getFields()
-
-        const newFields = filteredMappedContentType.map(field => {
-            return {
-                id: field.id,
-                name: field.name,
-                type: field.type,
-                userEditable: field.userEditable,
-                collectionId: field.collectionId,
-            }
-        })
-
-        await collection.setFields(newFields as ManagedCollectionField[])
-
-        await sync()
-
-        setIsLoading(false)
-    }
-
-    if (framer.mode === "syncManagedCollection") {
-        return
-    }
-
-    if (!isMounted) {
-        return
-    }
+    console.log(tokens)
 
     return (
-        <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
-            {!isAuthenticated ? (
-                <Auth
-                    contentfulConfig={contentfulConfig}
-                    setContentfulConfig={setContentfulConfig}
-                    isLoading={isLoading}
-                    onSubmit={onSubmitAuth}
-                />
-            ) : !contentType ? (
-                <ContentTypePicker
-                    onSubmit={onSubmitPickContentType}
-                    contentTypes={contentTypes}
-                    isLoading={isLoading}
-                />
-            ) : (
-                <Fields ref={fieldsRef} contentType={contentType} onSubmit={onSubmitFields} isLoading={isLoading} />
-            )}
+        <div>
+            <button onClick={login}>OAuth</button>
         </div>
     )
 }

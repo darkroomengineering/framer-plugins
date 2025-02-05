@@ -9,7 +9,4 @@ export default defineConfig({
     build: {
         target: "ES2022",
     },
-    server: {
-        cors: true,
-    },
 })

@@ -3,6 +3,33 @@ import Logo from "../assets/splash.png"
 import { framer } from "framer-plugin"
 import { useLayoutEffect } from "react"
 
+const CONTENT_TYPES = [
+    {
+        id: "jobs",
+        name: "Jobs",
+    },
+    {
+        id: "offices",
+        name: "Offices",
+    },
+    {
+        id: "departments",
+        name: "Departments",
+    },
+    {
+        id: "degrees",
+        name: "Degrees",
+    },
+    {
+        id: "disciplines",
+        name: "Disciplines",
+    },
+    {
+        id: "schools",
+        name: "Schools",
+    },
+]
+
 export function ContentTypePicker({
     onSubmit,
     // contentTypes,
@@ -28,16 +55,19 @@ export function ContentTypePicker({
                 className="object-contain w-full rounded-[10px] h-[200px] bg-contentful-orange bg-opacity-10"
             />
             <div className="row justify-between items-center items-center">
-                <label htmlFor="contentType" className="ml-[15px]">Content Type</label>
+                <label htmlFor="contentType" className="ml-[15px]">
+                    Content Type
+                </label>
                 <select id="contentType" className="w-[134px]">
                     <option disabled>Select a content type</option>
-                    {/* {contentTypes.map(contentType => (
-                        <option key={contentType.sys.id} value={contentType.sys.id}>
+                    {CONTENT_TYPES.map(contentType => (
+                        <option key={contentType.id} value={contentType.id}>
                             {contentType.name}
                         </option>
-                    ))} */}
+                    ))}
                 </select>
             </div>
+
             <div className="sticky left-0 bottom-0 flex justify-between bg-primary items-center max-w-full">
                 <button
                     type="submit"

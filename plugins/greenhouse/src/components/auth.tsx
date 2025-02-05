@@ -1,17 +1,9 @@
 import { framer } from "framer-plugin"
 import Logo from "../assets/splash.png"
-import { useLayoutEffect } from "react"
-export function Auth({
-    spaceId,
-    setSpaceId,
-    isLoading,
-    onSubmit,
-}: {
-    spaceId: string
-    setSpaceId: (spaceId: string | ((spaceId: string) => string)) => void
-    isLoading: boolean
-    onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
-}) {
+import { useEffect, useLayoutEffect, useState } from "react"
+export function Auth({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (spaceId: string) => void }) {
+    const [spaceId, setSpaceId] = useState("")
+
     useLayoutEffect(() => {
         framer.showUI({
             width: 320,
@@ -20,9 +12,25 @@ export function Auth({
         })
     }, [])
 
+    useEffect(() => {
+        async function prefill() {
+            const spaceId = await framer.getPluginData("greenhouse")
+            if (spaceId) {
+                setSpaceId(spaceId)
+            }
+        }
+
+        prefill()
+    }, [])
+
     return (
         <>
-            <form onSubmit={onSubmit} className="flex flex-col gap-[15px]">
+            <form
+                onSubmit={() => {
+                    onSubmit(spaceId)
+                }}
+                className="flex flex-col gap-[15px]"
+            >
                 <img
                     src={Logo}
                     alt="Contentful Hero"
