@@ -30,6 +30,3 @@ Check out [our documentation](https://framer.com/developers/plugins) to learn mo
 ### 🔮 Feedback
 
 -   For feature requests and bug reports, please open an Issue in this Repository.
-
-
-
