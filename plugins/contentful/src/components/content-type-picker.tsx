@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState } from "react"
 import { Hero } from "./hero"
 import { getApiKeys, getSpaces } from "../contentful-management"
 import { Space } from "contentful-management"
-import { getContentTypes, initContentful } from "../contentful"
+import { getContentTypes, getEntriesForContentType, initContentful } from "../contentful"
 
 export function ContentTypePicker({
     onSubmit,
@@ -22,7 +22,6 @@ export function ContentTypePicker({
     const [isLoading, setIsLoading] = useState(true)
     const [spaces, setSpaces] = useState<Space[]>([])
     const [spaceId, setSpaceId] = useState<string>("")
-    console.log({ spaceId })
     const [apiKey, setApiKey] = useState<string>("")
     const [contentTypes, setContentTypes] = useState<ContentType[]>([])
     const [contentTypeId, setContentTypeId] = useState<string>("")
@@ -76,8 +75,20 @@ export function ContentTypePicker({
         const fetchContentTypes = async () => {
             const contentTypes = await getContentTypes()
 
-            setContentTypes(contentTypes)
-            setContentTypeId(contentTypes[0]?.sys.id || "")
+            // Filter out content types with no entries
+            const contentTypesWithEntries = await Promise.all(
+                contentTypes.map(async contentType => {
+                    const entries = await getEntriesForContentType(contentType.sys.id)
+                    return entries.length > 0 ? contentType : null
+                })
+            )
+
+            const filteredContentTypes = contentTypesWithEntries.filter(
+                (ct): ct is NonNullable<typeof ct> => ct !== null
+            )
+
+            setContentTypes(filteredContentTypes)
+            setContentTypeId(filteredContentTypes[0]?.sys.id || "")
         }
 
         fetchContentTypes()
