@@ -102,7 +102,6 @@ export function App() {
                         setIsMounted(true)
                     }, 0)
                 })
-
             } catch (error) {
                 console.error("Failed to configure Contentful plugin:", error)
                 framer.notify("Failed to configure Contentful plugin", { variant: "error" })

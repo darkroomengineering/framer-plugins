@@ -79,9 +79,23 @@ export function App() {
         if (!contentTypeId) return
 
         const storeContentTypeId = async () => {
+            const collectionsList = await framer.getPluginData("contentful:collections")
+            const collections = collectionsList ? JSON.parse(collectionsList) : {}
+            const framerCollections = await framer.getCollections()
+
+            // delete collections that are not in framer
+            Object.entries(collections).forEach(([key, value]) => {
+                if (!framerCollections.find(({ id }) => id === value?.id)) {
+                    delete collections[key]
+                }
+            })
+
             const collection = await framer.getManagedCollection()
 
             collection.setPluginData("contentTypeId", contentTypeId)
+
+            collections[contentTypeId] = collection
+            await framer.setPluginData("contentful:collections", JSON.stringify(collections))
         }
 
         storeContentTypeId()
@@ -124,7 +138,7 @@ export function App() {
 
     return (
         <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
-            <button
+            {/* <button
                 className="fixed"
                 onClick={async () => {
                     const collection = await framer.getManagedCollection()
@@ -137,7 +151,7 @@ export function App() {
                 }}
             >
                 reset
-            </button>
+            </button> */}
 
             {!tokens ? (
                 <Auth onSubmit={setTokens} />
@@ -152,7 +166,18 @@ export function App() {
                     />
                 )
             ) : (
-                contentType && isContentfulInited && <Fields contentType={contentType} />
+                contentType &&
+                isContentfulInited && (
+                    <Fields
+                        contentType={contentType}
+                        onSubmit={(slugId, fields) => {
+                            console.log({
+                                slugId,
+                                fields,
+                            })
+                        }}
+                    />
+                )
             )}
         </div>
     )
