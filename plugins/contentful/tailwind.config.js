@@ -22,7 +22,7 @@ export default {
                 tertiary: "var(--framer-color-text-tertiary)",
                 inverted: "var(--framer-color-text-inverted)",
                 "framer-red": "#FF3366",
-                "contentful-orange": "#FF983D",
+                "contentful-blue": "#1770ED",
             },
             borderColor: {
                 divider: "var(--framer-color-divider)",

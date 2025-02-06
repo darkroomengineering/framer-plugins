@@ -1,23 +1,11 @@
 import { framer } from "framer-plugin"
-import Logo from "../assets/splash.png"
 import { useLayoutEffect } from "react"
+import { Hero } from "./hero"
+import { useRef, useState } from "react"
 
-type ContentfulConfig = {
-    space: string
-    accessToken: string
-}
+export function Auth({ onSubmit }: { onSubmit: (tokens: { access_token: string }) => void }) {
+    const [isLoading, setIsLoading] = useState(false)
 
-export function Auth({
-    contentfulConfig,
-    setContentfulConfig,
-    isLoading,
-    onSubmit,
-}: {
-    contentfulConfig: ContentfulConfig
-    setContentfulConfig: (config: ContentfulConfig | ((config: ContentfulConfig) => ContentfulConfig)) => void
-    isLoading: boolean
-    onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
-}) {
     useLayoutEffect(() => {
         framer.showUI({
             width: 320,
@@ -26,49 +14,84 @@ export function Auth({
         })
     }, [])
 
+    const pollInterval = useRef<NodeJS.Timeout>()
+
+    const pollForTokens = (readKey: string): Promise<{ access_token: string }> => {
+        // Clear any previous interval timers, one may already exist
+
+        // if this function was invoked multiple times.
+        if (pollInterval.current) {
+            clearInterval(pollInterval.current)
+        }
+
+        return new Promise(resolve => {
+            pollInterval.current = setInterval(async () => {
+                const response = await fetch(`https://localhost:8787/poll?readKey=${readKey}`, { method: "POST" })
+
+                if (response.status === 200) {
+                    const tokens = await response.json()
+
+                    clearInterval(pollInterval.current)
+                    resolve(tokens as { access_token: string })
+                }
+            }, 2500)
+        })
+    }
+
+    const login = async () => {
+        setIsLoading(true)
+        // Retrieve the authorization URL & set of unique read/write keys
+        const response = await fetch("https://localhost:8787/authorize", {
+            method: "POST",
+        })
+        if (response.status !== 200) return
+
+        const authorize = await response.json()
+
+        // Open up the provider's login window.
+        window.open(authorize.url)
+
+        // return
+
+        // While the user is logging in, poll the backend with the
+        // read key. On successful login, tokens will be returned.
+        const tokens = await pollForTokens(authorize.readKey)
+
+        // Store tokens in local storage to keep the user logged in.
+        // window.localStorage.setItem("tokens", JSON.stringify(tokens))
+
+        // Update the component state.
+        onSubmit(tokens)
+        setIsLoading(false)
+    }
+
     return (
         <>
-            <form onSubmit={onSubmit} className="flex flex-col gap-[15px]">
-                <img
-                    src={Logo}
-                    alt="Contentful Hero"
-                    className="object-contain w-full rounded-[10px] h-[200px] bg-contentful-orange bg-opacity-10"
+            <div className="col-lg">
+                <Hero />
+                <ol className="list-decimal list-inside space-y-2.5 marker:text-secondary text-tertiary *:text-content *:leading-none *:tracking-normal py-[7px]">
+                    <li>
+                        <span className="pl-[10px]">Log in to your Contentful account</span>
+                    </li>
 
-                />
-                <div className="flex flex-col gap-[10px] text-secondary">
-                    <div className="row justify-between items-center items-center">
-                        <label htmlFor="spaceId" className="ml-[15px]">Space ID</label>
-                        <input
-                            id="spaceId"
-                            type="text"
-                            className="w-[134px]"
-                            placeholder="Space ID"
-                            value={contentfulConfig.space}
-                            onChange={e => setContentfulConfig(prev => ({ ...prev, space: e.target.value }))}
-                        />
-                    </div>
-                    <div className="row justify-between items-center items-center">
-                        <label htmlFor="accessToken" className="ml-[15px]">Access Token</label>
-                        <input
-                            id="accessToken"
-                            type="text"
-                            className="w-[134px]"
-                            placeholder="Access Token"
-                            value={contentfulConfig.accessToken}
-                            onChange={e => setContentfulConfig(prev => ({ ...prev, accessToken: e.target.value }))}
-                        />
-                    </div>
-                </div>
+                    <li>
+                        <span className="pl-[10px]">Select the Space and Content Type</span>
+                    </li>
+                    <li>
+                        <span className="pl-[10px]">Map the fields to the CMS</span>
+                    </li>
+                </ol>
                 <div className="sticky left-0 bottom-0 flex justify-between bg-primary items-center max-w-full">
                     <button
                         type="submit"
                         disabled={isLoading}
                         className="flex justify-center items-center relative py-2 framer-button-secondary w-full"
+                        onClick={login}
                     >
-                        {isLoading ? "Connecting..." : "Connect"}
+                        {isLoading ? "Connecting..." : "Sign in"}
                     </button>
                 </div>
-            </form>
+            </div>
         </>
     )
 }

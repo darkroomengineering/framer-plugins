@@ -28,7 +28,7 @@ export function CheckboxTextfield({ value, disabled, checked, onChange }: Props)
                 checked={checked}
                 onChange={toggle}
                 onClick={e => e.stopPropagation()}
-                className="checked:!bg-contentful-orange focus:ring-1 focus:ring-contentful-orange checked:border-none dark:!bg-[#777] !bg-[#CCC]"
+                className="checked:!bg-contentful-blue focus:ring-1 focus:ring-contentful-blue checked:border-none dark:!bg-[#777] !bg-[#CCC]"
             />
             <input
                 className="bg-transparent w-full shrink pointer-events-none select-none"

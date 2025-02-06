@@ -1,71 +1,26 @@
+import { useEffect, useState } from "react"
+import { Auth } from "./components/auth"
+import { getSpaces, initContentfulManagement } from "./contentful-management"
+import { ContentTypePicker } from "./components/content-type-picker"
 import { framer } from "framer-plugin"
-import { useEffect, useRef, useState } from "react"
-import { createClient } from "contentful-management"
+import { initContentful } from "./contentful"
 
 export function App() {
-    useEffect(() => {
-        framer.showUI({
-            width: 300,
-            height: 300,
-        })
-    }, [])
+    const [isLoading, setIsLoading] = useState(false)
+    const [tokens, setTokens] = useState<{ access_token: string } | null>(null)
+    const [contentTypeId, setContentTypeId] = useState<string | null>(null)
+    const [spaceId, setSpaceId] = useState<string | null>(null)
+    const [apiKey, setApiKey] = useState<string | null>(null)
 
-    const pollInterval = useRef()
-
-    const pollForTokens = readKey => {
-        // Clear any previous interval timers, one may already exist
-        // if this function was invoked multiple times.
-        if (pollInterval.current) {
-            clearInterval(pollInterval.current)
-        }
-
-        return new Promise(resolve => {
-            pollInterval.current = setInterval(async () => {
-                const response = await fetch(`https://localhost:8787/poll?readKey=${readKey}`, { method: "POST" })
-
-                if (response.status === 200) {
-                    const tokens = await response.json()
-
-                    clearInterval(pollInterval.current)
-                    resolve(tokens)
-                }
-            }, 2500)
-        })
-    }
-
-    const [tokens, setTokens] = useState(null)
-
-    const login = async () => {
-        // Retrieve the authorization URL & set of unique read/write keys
-        const response = await fetch("https://localhost:8787/authorize", {
-            method: "POST",
-        })
-        if (response.status !== 200) return
-
-        const authorize = await response.json()
-        // https://be.contentful.com/oauth/authorize?response_type=token&client_id=NSVZbJDKXl3ISvKCHQOAd5a7pupbS4KT-EmTgGO6wGo&redirect_uri=https%3A%2F%2Flocalhost%3A8787%2Fredirect&response_type=code&access_type=online&include_granted_scopes=true&scope=content_management_read&state=146a6485e23d7f7c40a3765906bda00b
-        // https://be.contentful.com/oauth/authorize?client_id=NSVZbJDKXl3ISvKCHQOAd5a7pupbS4KT-EmTgGO6wGo&redirect_uri=https%3A%2F%2Flocalhost%3A8787%2Fredirect&response_type=code&access_type=online&include_granted_scopes=true&scope=content_management_read&state=b5d7b6c1dd4d12eb237174e474bbde2c
-
-        console.log(authorize)
-
-        // return
-        // Open up the provider's login window.
-        window.open(authorize.url)
-
-        // return
-
-        // While the user is logging in, poll the backend with the
-        // read key. On successful login, tokens will be returned.
-        const tokens = await pollForTokens(authorize.readKey)
-
-        // Store tokens in local storage to keep the user logged in.
-        window.localStorage.setItem("tokens", JSON.stringify(tokens))
-
-        // Update the component state.
-        setTokens(tokens)
-    }
+    console.log({
+        tokens,
+        contentTypeId,
+        spaceId,
+        apiKey,
+    })
 
     useEffect(() => {
+        // setIsLoading(true)
         // Check for tokens on first load.
         const serializedTokens = window.localStorage.getItem("tokens")
         if (!serializedTokens) return
@@ -75,29 +30,106 @@ export function App() {
     }, [])
 
     useEffect(() => {
-        if (!tokens) return
+        // check for contentful config on first load
+        const fetchContentfulConfig = async () => {
+            const collection = await framer.getManagedCollection()
+            const serializedContentfulConfig = await collection.getPluginData("contentful")
+            if (!serializedContentfulConfig) return
+            const contentfulConfig = JSON.parse(serializedContentfulConfig)
 
-        const fetchSpaces = async () => {
-            console.log(tokens.access_token)
-
-            const client = createClient({
-                accessToken: tokens.access_token,
-            })
-
-            client
-                .getSpaces()
-                .then(response => console.log(response.items))
-                .catch(console.error)
+            setSpaceId(contentfulConfig.spaceId)
+            setApiKey(contentfulConfig.apiKey)
         }
 
-        fetchSpaces()
+        fetchContentfulConfig()
+    }, [])
+
+    useEffect(() => {
+        const fetchContentTypeId = async () => {
+            const collection = await framer.getManagedCollection()
+            const contentTypeId = await collection.getPluginData("contentTypeId")
+            if (!contentTypeId) return
+            setContentTypeId(contentTypeId)
+        }
+
+        fetchContentTypeId()
+    }, [])
+
+    useEffect(() => {
+        if (!tokens) return
+
+        //Store tokens in local storage to keep the user logged in.
+        window.localStorage.setItem("tokens", JSON.stringify(tokens))
+        initContentfulManagement(tokens.access_token)
+
+        // setIsLoading(false)
     }, [tokens])
 
-    console.log(tokens)
+    useEffect(() => {
+        if (!contentTypeId) return
+
+        const storeContentTypeId = async () => {
+            const collection = await framer.getManagedCollection()
+
+            collection.setPluginData("contentTypeId", contentTypeId)
+        }
+
+        storeContentTypeId()
+    }, [contentTypeId])
+
+    useEffect(() => {
+        if (!spaceId || !apiKey) return
+
+        initContentful({
+            space: spaceId,
+            accessToken: apiKey,
+        })
+
+        const storeCredentials = async () => {
+            const collection = await framer.getManagedCollection()
+
+            collection.setPluginData(
+                "contentful",
+                JSON.stringify({
+                    spaceId,
+                    apiKey,
+                })
+            )
+        }
+
+        storeCredentials()
+    }, [spaceId, apiKey])
 
     return (
-        <div>
-            <button onClick={login}>OAuth</button>
+        <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
+            <button
+                className="fixed"
+                onClick={async () => {
+                    const collection = await framer.getManagedCollection()
+                    await collection.setPluginData("contentTypeId", null)
+                    await collection.setPluginData("contentful", null)
+
+                    setSpaceId(null)
+                    setApiKey(null)
+                    setContentTypeId(null)
+                }}
+            >
+                reset
+            </button>
+
+            {!tokens ? (
+                <Auth onSubmit={setTokens} />
+            ) : !spaceId || !apiKey || !contentTypeId ? (
+                <ContentTypePicker
+                    onSubmit={({ spaceId, contentTypeId, apiKey }) => {
+                        setSpaceId(spaceId)
+                        setApiKey(apiKey)
+                        setContentTypeId(contentTypeId)
+                    }}
+                />
+            ) : (
+                <div>{contentTypeId}</div>
+            )}
         </div>
     )
 }
