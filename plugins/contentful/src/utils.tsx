@@ -107,7 +107,17 @@ export function mapContentfulValueToFramerValue(value: ContentTypeField, framerF
     }
 
     if (framerField?.type === "number") {
-        return Number(value)
+        if (typeof value === "number") {
+            return Number(value)
+        } else {
+            const numberValue = Number(value)
+
+            if (isNaN(numberValue)) {
+                return 0
+            }
+
+            return numberValue
+        }
     }
 
     if (framerField?.type === "date" || framerField?.type === "color") {

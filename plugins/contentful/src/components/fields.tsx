@@ -1,5 +1,5 @@
 import { Collection, CollectionField, framer, ManagedCollectionField } from "framer-plugin"
-import { forwardRef, Fragment, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { CheckboxTextfield } from "./checkbox-text-field"
 import cx from "classnames"
 import { useInView } from "react-intersection-observer"
@@ -27,8 +27,9 @@ export function Fields({
     onSubmit,
 }: {
     contentType: ContentType
-    onSubmit: (slugId: string, fields: CollectionField[]) => void
+    onSubmit: (slugId: string, fields: CollectionField[]) => Promise<void>
 }) {
+    const [isLoading, setIsLoading] = useState(false)
     const [slugFieldId, setSlugFieldId] = useState<string | null>(null)
     const [mappedContentType, setMappedContentType] = useState<ExtendedManagedCollectionField[]>([])
     const filteredMappedContentType = mappedContentType?.filter(
@@ -81,7 +82,7 @@ export function Fields({
 
                         return {
                             ...framerField,
-                            // field,
+                            field,
                             defaultType: framerField.type,
                             collectionId: framerField.collectionId,
                         }
@@ -125,6 +126,18 @@ export function Fields({
     useEffect(() => {
         setSlugFieldId(slugSelectRef.current?.value ?? null)
     }, [slugableFields])
+
+    useLayoutEffect(() => {
+        if (mappedContentType.length === 0) return
+
+        framer.showUI({
+            width: 340,
+            height: Math.max(345, Math.min(425, (mappedContentType?.length ?? 0) * 100)),
+            resizable: false,
+        })
+    }, [mappedContentType])
+
+    if (mappedContentType.length === 0) return
 
     return (
         <div className="col gap-[10px] flex-1 text-tertiary">
@@ -248,13 +261,22 @@ export function Fields({
             <div className="sticky left-0 bottom-0 flex justify-between bg-primary py-[15px] border-t border-divider border-opacity-20 items-center max-w-full">
                 <button
                     type="button"
-                    disabled={!slugFieldId || !mappedContentType.length || !slugableFields.length || !fields.length}
+                    disabled={
+                        isLoading ||
+                        !slugFieldId ||
+                        !mappedContentType.length ||
+                        !slugableFields.length ||
+                        !fields.length
+                    }
                     className="w-full"
-                    onClick={() => {
-                        onSubmit(slugFieldId, fields)
+                    onClick={async () => {
+                        setIsLoading(true)
+                        // @ts-expect-error: button can't be clicked if it's disabled
+                        await onSubmit(slugFieldId, fields)
+                        setIsLoading(false)
                     }}
                 >
-                    Import from {contentType?.name}
+                    {isLoading ? "Importing..." : `Import from ${contentType?.name}`}
                 </button>
             </div>
         </div>

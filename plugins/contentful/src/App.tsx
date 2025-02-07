@@ -2,13 +2,14 @@ import { useEffect, useState } from "react"
 import { Auth } from "./components/auth"
 import { initContentfulManagement } from "./contentful-management"
 import { ContentTypePicker } from "./components/content-type-picker"
-import { framer } from "framer-plugin"
-import { getContentType, initContentful } from "./contentful"
+import { CollectionField, CollectionItem, framer, ManagedCollectionField, Mode } from "framer-plugin"
+import { getContentType, getEntriesForContentType, initContentful } from "./contentful"
 import { Fields } from "./components/fields"
 import { ContentType } from "contentful"
+import { getFramerFieldFromContentfulField, mapContentfulValueToFramerValue } from "./utils"
 
 export function App() {
-    const [isLoading, setIsLoading] = useState(false)
+    // const [isLoading, setIsLoading] = useState(false)
     const [tokens, setTokens] = useState<{ access_token: string } | null>(null)
     const [contentTypeId, setContentTypeId] = useState<string | null>(null)
     const [spaceId, setSpaceId] = useState<string | null>(null)
@@ -16,15 +17,32 @@ export function App() {
     const [contentType, setContentType] = useState<ContentType | null>(null)
     const [isContentfulInited, setIsContentfulInited] = useState(false)
     const [isContentfulManagementInited, setIsContentfulManagementInited] = useState(false)
+    const [mode] = useState<Mode>(framer.mode)
+    const [isMounted, setIsMounted] = useState(false)
+    // const [slugFieldId, setSlugFieldId] = useState<string | null>(null)
+    // const [fields, setFields] = useState<CollectionField[]>([])
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            // wait for the plugin to be mounted
+            setIsMounted(true)
+        }, 1000)
+
+        return () => clearTimeout(timeout)
+    }, [])
 
     console.log({
         tokens,
+
         contentTypeId,
         spaceId,
         apiKey,
         contentType,
         isContentfulInited,
         isContentfulManagementInited,
+        mode,
+        // slugFieldId,
+        // fields,
     })
 
     useEffect(() => {
@@ -126,7 +144,7 @@ export function App() {
     }, [spaceId, apiKey])
 
     useEffect(() => {
-        if (!contentTypeId) return
+        if (!contentTypeId || !isContentfulInited) return
 
         const fetchContentType = async () => {
             const contentType = await getContentType(contentTypeId)
@@ -135,6 +153,126 @@ export function App() {
 
         fetchContentType()
     }, [contentTypeId, isContentfulInited])
+
+    const sync = async () => {
+        const collection = await framer.getManagedCollection()
+        const fields = await collection.getFields()
+        const slugFieldId = await collection.getPluginData("slugFieldId")
+        const contentTypeId = await collection.getPluginData("contentTypeId")
+
+        if (!slugFieldId || !contentTypeId) {
+            return
+        }
+
+        // const credentials = await collection.getPluginData("contentful")
+        // if (credentials) {
+        //     initContentful(JSON.parse(credentials))
+        // }
+
+        const contentType = await getContentType(contentTypeId)
+
+        const existingMappedContentType = fields.map(framerField => {
+            return {
+                ...framerField,
+                field: contentType.fields.find(field => field.id === framerField.id),
+            }
+        })
+
+        let mappedContentType = await Promise.all(
+            contentType.fields.map(async field => {
+                const framerField = await getFramerFieldFromContentfulField(field)
+
+                return {
+                    ...framerField,
+                    field,
+                    defaultType: framerField.type,
+                    collectionId: framerField.collectionId,
+                }
+            })
+        )
+
+        mappedContentType = mappedContentType
+            .map(field => {
+                const existingField = existingMappedContentType.find(existingField => existingField.id === field.id)
+
+                if (existingField) {
+                    field = { ...field, ...existingField }
+                }
+
+                if (!existingField) {
+                    field.isDisabled = true
+                }
+
+                return field
+            })
+            .filter(field => field.isDisabled !== true)
+
+        const entries = await getEntriesForContentType(contentTypeId)
+
+        const mappedEntries = entries.map(entry => {
+            return {
+                id: entry.sys.id,
+                slug: entry.fields[slugFieldId ?? ""],
+                fieldData: Object.fromEntries(
+                    Object.entries(entry.fields)
+                        .filter(([id]) => mappedContentType.some(field => field.id === id))
+                        .map(([id, value]) => {
+                            const framerField = mappedContentType.find(field => field.id === id)
+
+                            if (!framerField) {
+                                return [id, value]
+                            }
+
+                            // @ts-expect-error Can't find the right type for the value
+                            const mappedValue = mapContentfulValueToFramerValue(value, framerField)
+
+                            return [id, mappedValue]
+                        })
+                ),
+            }
+        })
+
+        const existingEntriesIds = await collection.getItemIds()
+
+        // const entriesToBeAdded = mappedEntries.filter(entry => !existingEntriesIds.includes(entry.id))
+        const entriesToBeRemoved = existingEntriesIds.filter(id => !mappedEntries.some(entry => entry.id === id))
+        const order = entries.map(entry => entry.sys.id)
+
+        await collection.addItems(mappedEntries as CollectionItem[])
+        await collection.removeItems(entriesToBeRemoved)
+        await collection.setItemOrder(order)
+        // }
+
+        // try {
+        // } catch (error) {
+        //     console.error("Failed to sync collection:", error)
+        //     framer.notify(`Failed to sync collection, ${error instanceof Error ? error.message : "Unknown error"}`, {
+        //         variant: "error",
+        //     })
+        // }
+
+        framer.closePlugin()
+    }
+
+    const onSubmitFields = async (slugId: string, fields: CollectionField[]) => {
+        const collection = await framer.getManagedCollection()
+        await collection.setPluginData("slugFieldId", slugId)
+
+        await collection.setFields(fields as ManagedCollectionField[])
+
+        await sync()
+    }
+
+    useEffect(() => {
+        if (!isContentfulInited) return
+
+        if (mode === "syncManagedCollection") {
+            sync()
+        }
+    }, [mode, isContentfulInited])
+
+    if (mode === "syncManagedCollection") return
+    if (!isMounted) return
 
     return (
         <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
@@ -166,18 +304,7 @@ export function App() {
                     />
                 )
             ) : (
-                contentType &&
-                isContentfulInited && (
-                    <Fields
-                        contentType={contentType}
-                        onSubmit={(slugId, fields) => {
-                            console.log({
-                                slugId,
-                                fields,
-                            })
-                        }}
-                    />
-                )
+                contentType && isContentfulInited && <Fields contentType={contentType} onSubmit={onSubmitFields} />
             )}
         </div>
     )
