@@ -282,10 +282,16 @@ export function App() {
                     const collection = await framer.getManagedCollection()
                     await collection.setPluginData("contentTypeId", null)
                     await collection.setPluginData("contentful", null)
+                    await collection.setPluginData("slugFieldId", null)
+                    window.localStorage.removeItem("tokens")
 
+                    setTokens(null)
                     setSpaceId(null)
                     setApiKey(null)
                     setContentTypeId(null)
+                    setContentType(null)
+                    setIsContentfulInited(false)
+                    setIsContentfulManagementInited(false)
                 }}
             >
                 reset

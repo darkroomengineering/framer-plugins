@@ -3,6 +3,10 @@ import { useLayoutEffect } from "react"
 import { Hero } from "./hero"
 import { useRef, useState } from "react"
 
+const isLocal = () => window.location.hostname.includes("localhost")
+
+const AUTH_BACKEND = isLocal() ? "https://localhost:8787" : "https://example.com"
+
 export function Auth({ onSubmit }: { onSubmit: (tokens: { access_token: string }) => void }) {
     const [isLoading, setIsLoading] = useState(false)
 
@@ -26,7 +30,7 @@ export function Auth({ onSubmit }: { onSubmit: (tokens: { access_token: string }
 
         return new Promise(resolve => {
             pollInterval.current = setInterval(async () => {
-                const response = await fetch(`https://localhost:8787/poll?readKey=${readKey}`, { method: "POST" })
+                const response = await fetch(`${AUTH_BACKEND}/poll?readKey=${readKey}`, { method: "POST" })
 
                 if (response.status === 200) {
                     const tokens = await response.json()
@@ -41,7 +45,7 @@ export function Auth({ onSubmit }: { onSubmit: (tokens: { access_token: string }
     const login = async () => {
         setIsLoading(true)
         // Retrieve the authorization URL & set of unique read/write keys
-        const response = await fetch("https://localhost:8787/authorize", {
+        const response = await fetch(`${AUTH_BACKEND}/authorize`, {
             method: "POST",
         })
         if (response.status !== 200) return
