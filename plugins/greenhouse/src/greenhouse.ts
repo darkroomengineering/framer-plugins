@@ -15,6 +15,33 @@ export const FIELD_TYPE_OPTIONS: { type: CollectionFieldType; label: string }[] 
     // { type: "file", label: "File" }, // this cannot be handled by the plugin
 ]
 
+export type Job = {
+    id: string
+    internal_job_id: string
+    title: string
+    updated_at: string
+    requisition_id: string
+    location: {
+        name: string
+    }
+    absolute_url: string
+    content: string
+    departments: Department[]
+    offices: Office[]
+}
+
+export type Department = {
+    id: string
+    name: string
+    jobs: Job[]
+}
+
+export type Office = {
+    id: string
+    name: string
+    departments: Department[]
+}
+
 export const CONTENT_TYPES = [
     {
         id: "jobs",
@@ -26,12 +53,12 @@ export const CONTENT_TYPES = [
             {
                 id: "id",
                 name: "Id",
-                type: "number",
+                type: "string",
             },
             {
                 id: "internal_job_id",
                 name: "Internal Job Id",
-                type: "number",
+                type: "string",
             },
             {
                 id: "title",
@@ -46,13 +73,12 @@ export const CONTENT_TYPES = [
             {
                 id: "requisition_id",
                 name: "Requisition ID",
-                type: "number",
+                type: "string",
             },
             {
                 id: "location",
                 name: "Location",
                 type: "string",
-                // path: "location/name",
             },
             {
                 id: "absolute_url",
@@ -62,31 +88,96 @@ export const CONTENT_TYPES = [
             {
                 id: "content",
                 name: "Content",
-                type: "string",
+                type: "formattedText",
             },
             {
-                id: "departements",
-                name: "Departements",
+                id: "departments",
+                name: "Departments",
                 type: "multiCollectionReference",
+                contentTypeId: "departments",
             },
             {
                 id: "offices",
                 name: "Offices",
                 type: "multiCollectionReference",
+                contentTypeId: "offices",
             },
         ],
+        mapEntry: (entry: Job) => {
+            return {
+                id: String(entry?.id),
+                internal_job_id: String(entry?.internal_job_id),
+                title: entry?.title,
+                updated_at: String(entry?.updated_at),
+                requisition_id: String(entry?.requisition_id),
+                location: entry?.location?.name,
+                absolute_url: String(entry?.absolute_url),
+                content: entry?.content,
+                departments: entry?.departments?.map((department: Department) => String(department.id)),
+                offices: entry?.offices?.map((office: Office) => String(office.id)),
+            }
+        },
     },
     {
         id: "offices",
         name: "Offices",
         path: "/offices",
         key: "offices",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "name",
+                name: "Name",
+                type: "string",
+            },
+            {
+                id: "departments",
+                name: "Departments",
+                type: "multiCollectionReference",
+            },
+        ],
+        mapEntry: (entry: Office) => {
+            return {
+                id: String(entry?.id),
+                name: entry?.name,
+                departments: entry?.departments?.map((department: Department) => String(department.id)),
+            }
+        },
     },
     {
         id: "departments",
         name: "Departments",
         path: "/departments",
         key: "departments",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "name",
+                name: "Name",
+                type: "string",
+            },
+            {
+                id: "jobs",
+                name: "Jobs",
+                type: "multiCollectionReference",
+                contentTypeId: "jobs",
+            },
+        ],
+        mapEntry: (entry: Department) => {
+            return {
+                id: String(entry?.id),
+                name: entry?.name,
+                jobs: entry?.jobs?.map((job: Job) => String(job.id)),
+            }
+        },
     },
     {
         id: "degrees",
@@ -127,7 +218,10 @@ export async function initGreenhouse(spaceId: string) {
     return true
 }
 
-export async function getContentType(contentType: string, all: boolean = true) {
+export async function getContentType(
+    contentType: string,
+    all: boolean = true
+): Promise<Job[] | Department[] | Office[]> {
     if (!greenhouseToken) throw new Error("Greenhouse token not set")
 
     const response = await fetch(
@@ -142,7 +236,6 @@ export async function getContentType(contentType: string, all: boolean = true) {
 
     if (count > perPage && all) {
         const pages = Math.ceil(count / perPage)
-        console.log(count, perPage, pages)
 
         const promises = []
 
@@ -167,7 +260,9 @@ export async function getContentType(contentType: string, all: boolean = true) {
     return data[key]
 }
 
-export async function getAllContentTypes(all: boolean = true): Promise<Record<string, any[]>> {
+export async function getAllContentTypes(
+    all: boolean = true
+): Promise<Record<string, Job[] | Department[] | Office[]>> {
     if (!greenhouseToken) throw new Error("Greenhouse token not set")
 
     const contentTypes = await Promise.all(

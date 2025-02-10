@@ -1,5 +1,5 @@
 import { framer } from "framer-plugin"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 function parse(str: string): string | object {
     try {
@@ -10,37 +10,40 @@ function parse(str: string): string | object {
     }
 }
 
-type PluginData<T> = [T | null, (value: T | null) => void]
+type PluginData<T> = [T | null, (value: T | null) => Promise<void>, () => Promise<T | undefined>]
 
 export function usePluginData<T>(key: string, initialValue: T): PluginData<T> {
     const [data, setData] = useState<T | null>(initialValue)
 
-    useEffect(() => {
-        const get = async () => {
-            const collection = await framer.getManagedCollection()
-            const serializedData = await collection.getPluginData(key)
+    const get = useCallback(async () => {
+        const collection = await framer.getManagedCollection()
+        const serializedData = await collection.getPluginData(key)
 
-            if (!serializedData) return
+        if (!serializedData) return
 
-            setData(parse(serializedData) as T)
-        }
-
-        get()
+        return parse(serializedData) as T
     }, [key])
 
     useEffect(() => {
-        const set = async () => {
+        get().then(v => {
+            if (v) setData(v)
+        })
+    }, [key, get])
+
+    const set = useCallback(
+        async (value: T | null) => {
             const collection = await framer.getManagedCollection()
 
-            if (typeof data === "object") {
-                await collection.setPluginData(key, JSON.stringify(data))
+            if (typeof value === "object") {
+                await collection.setPluginData(key, JSON.stringify(value))
             } else {
-                await collection.setPluginData(key, data as string)
+                await collection.setPluginData(key, value as string)
             }
-        }
 
-        set()
-    }, [data, key])
+            setData(value)
+        },
+        [key]
+    )
 
-    return [data, setData] as const
+    return [data, set, get] as const
 }

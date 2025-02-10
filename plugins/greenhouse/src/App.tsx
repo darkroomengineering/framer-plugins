@@ -1,22 +1,28 @@
-import { useLayoutEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 import { Auth } from "./components/auth"
 import { ContentTypePicker } from "./components/content-type-picker"
 import { Fields } from "./components/fields"
 import { usePluginData } from "./hooks/use-plugin-data"
-import { initGreenhouse } from "./greenhouse"
+import { CONTENT_TYPES, getContentType, initGreenhouse } from "./greenhouse"
+import { CollectionField, CollectionItem, framer, ManagedCollectionField, Mode } from "framer-plugin"
+import pkg from "../package.json"
 
 export function App() {
-    const [isLoading, setIsLoading] = useState(false)
-    const [contentTypes, setContentTypes] = useState<[]>([])
     const [spaceId, setSpaceId] = usePluginData("spaceId", "")
     const [contentTypeId, setContentTypeId] = usePluginData("contentTypeId", "")
+    const [slugFieldId, setSlugFieldId, getSlugFieldId] = usePluginData("slugFieldId", "")
     const [isGreenhouseInitialized, setIsGreenhouseInitialized] = useState<boolean>(false)
     const [isMounted, setIsMounted] = useState(false)
+    const [mode] = useState<Mode>(framer.mode)
 
-    console.log({
-        spaceId,
-        contentTypeId,
-    })
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            // wait for the plugin to be mounted
+            setIsMounted(true)
+        }, 1000)
+
+        return () => clearTimeout(timeout)
+    }, [])
 
     useLayoutEffect(() => {
         if (spaceId) {
@@ -31,6 +37,65 @@ export function App() {
         }
     }, [spaceId, setSpaceId])
 
+    const sync = async () => {
+        const slugFieldId = await getSlugFieldId()
+
+        if (!slugFieldId || !contentTypeId) return
+
+        const contentType = CONTENT_TYPES.find(contentType => contentType.id === contentTypeId)
+
+        if (!contentType) return // TODO: handle this, content type not supported
+
+        const collection = await framer.getManagedCollection()
+
+        const fields = await collection.getFields()
+
+        const entries = await getContentType(contentTypeId)
+
+        const mappedEntries = entries.map(entry => {
+            const mappedEntry = contentType.mapEntry(entry)
+            console.log(mappedEntry)
+
+            return {
+                id: mappedEntry.id,
+                slug: slugFieldId === "id" ? `${mappedEntry.id}` : `${mappedEntry[slugFieldId]}-${mappedEntry.id}`,
+                fieldData: Object.fromEntries(
+                    Object.entries(mappedEntry).filter(([key]) => fields.map(field => field.id).includes(key))
+                ),
+            }
+        })
+
+        await collection.addItems(mappedEntries)
+
+        const existingEntriesIds = await collection.getItemIds()
+
+        const entriesToBeRemoved = existingEntriesIds.filter(id => !mappedEntries.some(entry => entry.id === id))
+
+        await collection.addItems(mappedEntries as CollectionItem[])
+        await collection.removeItems(entriesToBeRemoved)
+
+        framer.closePlugin()
+    }
+
+    const onSubmitFields = async (slugId: string, fields: CollectionField[]) => {
+        await setSlugFieldId(slugId)
+
+        const collection = await framer.getManagedCollection()
+
+        await collection.setFields(fields as ManagedCollectionField[])
+
+        await sync()
+    }
+
+    useEffect(() => {
+        if (!isGreenhouseInitialized) return
+
+        if (mode === "syncManagedCollection") sync()
+    }, [mode, isGreenhouseInitialized])
+
+    if (mode === "syncManagedCollection") return
+    if (!isMounted) return
+
     return (
         <>
             <button
@@ -39,6 +104,8 @@ export function App() {
                     setSpaceId("")
                     setContentTypeId("")
                     setIsGreenhouseInitialized(false)
+
+                    framer.setPluginData(`${pkg.name}:collections`, JSON.stringify([]))
                 }}
             >
                 reset
@@ -49,7 +116,7 @@ export function App() {
                 ) : !contentTypeId ? (
                     isGreenhouseInitialized && <ContentTypePicker onSubmit={setContentTypeId} />
                 ) : (
-                    <Fields contentTypeId={contentTypeId} />
+                    isGreenhouseInitialized && <Fields contentTypeId={contentTypeId} onSubmit={onSubmitFields} />
                 )}
             </div>
         </>
