@@ -1,16 +1,16 @@
 import cx from "classnames"
 
 interface Props {
-    value: string
-    disabled: boolean
-    checked: boolean
-    onChange: () => void
+    value?: string
+    disabled?: boolean
+    checked?: boolean
+    onChange?: () => void
 }
 
 export function CheckboxTextfield({ value, disabled, checked, onChange }: Props) {
     const toggle = () => {
         if (disabled) return
-        onChange()
+        onChange?.()
     }
 
     return (
