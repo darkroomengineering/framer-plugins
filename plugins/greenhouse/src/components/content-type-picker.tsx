@@ -2,18 +2,16 @@
 import Logo from "../assets/splash.png"
 import { framer } from "framer-plugin"
 import { useEffect, useLayoutEffect, useState } from "react"
-import { CONTENT_TYPES, getAllContentTypes } from "../greenhouse"
+import { CONTENT_TYPES, Department, getAllContentTypes, Job, Office } from "../greenhouse"
 
 export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: string | null) => void }) {
     const [contentTypeId, setContentTypeId] = useState<string | null>(null)
-    const [contentTypes, setContentTypes] = useState<{ id: string; entries: any[] }[]>([])
-    const [isLoading, setIsLoading] = useState(false)
+    const [contentTypes, setContentTypes] = useState<{ id: string; entries: Job[] | Department[] | Office[] }[]>([])
 
     console.log("contentTypes", contentTypes)
 
     useEffect(() => {
         const fetchContentTypes = async () => {
-            setIsLoading(true)
             const contentTypes = await getAllContentTypes(false)
 
             const contentTypesWithEntries = Object.entries(contentTypes)
@@ -23,8 +21,9 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
                 }))
                 .filter(({ entries }) => entries?.length > 0)
 
+            console.log("contentTypesWithEntries", contentTypesWithEntries)
+
             setContentTypes(contentTypesWithEntries)
-            setIsLoading(false)
         }
 
         fetchContentTypes()
@@ -55,9 +54,10 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
                     onChange={e => {
                         setContentTypeId(e.target.value)
                     }}
+                    disabled={contentTypes.length === 0}
                 >
                     <option disabled selected>
-                        Select a content type...
+                        {contentTypes.length === 0 ? "Loading..." : "Select..."}
                     </option>
 
                     {contentTypes.map(({ id }) => (
@@ -78,7 +78,7 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
                         onSubmit(contentTypeId)
                     }}
                 >
-                    {isLoading ? "Loading..." : "Next"}
+                    Next
                 </button>
             </div>
         </div>

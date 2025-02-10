@@ -196,7 +196,7 @@ export function Fields({
                                 className={cx("w-full", {
                                     "opacity-50": isDisabled || isMissingReference,
                                 })}
-                                value={type}
+                                value={isMissingReference ? "string" : type}
                                 disabled={isDisabled || isMissingReference}
                                 onChange={e => {
                                     setMappedContentType(prev => {
@@ -207,7 +207,7 @@ export function Fields({
                                     })
                                 }}
                             >
-                                {collectionId ? (
+                                {collectionId || isMissingReference ? (
                                     <>
                                         <option value="string">String</option>
                                         <option value={defaultType}>
