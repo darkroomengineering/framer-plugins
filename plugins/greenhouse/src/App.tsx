@@ -98,7 +98,7 @@ export function App() {
 
     return (
         <>
-            <button
+            {/* <button
                 className="fixed"
                 onClick={() => {
                     setSpaceId("")
@@ -109,7 +109,7 @@ export function App() {
                 }}
             >
                 reset
-            </button>
+            </button> */}
             <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
                 {!spaceId ? (
                     <Auth onSubmit={setSpaceId} />
