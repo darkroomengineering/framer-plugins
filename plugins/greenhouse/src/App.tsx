@@ -29,6 +29,7 @@ export function App() {
             initGreenhouse(spaceId)
                 .then(() => {
                     setIsGreenhouseInitialized(true)
+                    framer.setPluginData("greenhouse", spaceId)
                 })
                 .catch(() => {
                     setSpaceId("")

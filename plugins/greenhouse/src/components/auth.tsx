@@ -18,6 +18,7 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
     useEffect(() => {
         async function prefill() {
             const spaceId = await framer.getPluginData("greenhouse")
+            console.log("spaceId", spaceId)
             if (spaceId) {
                 setSpaceId(spaceId)
             }
