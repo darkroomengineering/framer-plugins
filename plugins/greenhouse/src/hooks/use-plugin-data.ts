@@ -10,7 +10,7 @@ function parse(str: string): string | object {
     }
 }
 
-type PluginData<T> = [T | null, (value: T | null) => Promise<void>, () => Promise<T | undefined>]
+type PluginData<T> = [T | null, (value: T | null) => void]
 
 export function usePluginData<T>(key: string, initialValue: T): PluginData<T> {
     const [data, setData] = useState<T | null>(initialValue)
@@ -30,20 +30,34 @@ export function usePluginData<T>(key: string, initialValue: T): PluginData<T> {
         })
     }, [key, get])
 
-    const set = useCallback(
-        async (value: T | null) => {
+    // const set = useCallback(
+    //     async (value: T | null) => {
+    //         const collection = await framer.getManagedCollection()
+
+    //         if (typeof value === "object") {
+    //             await collection.setPluginData(key, JSON.stringify(value))
+    //         } else {
+    //             await collection.setPluginData(key, value as string)
+    //         }
+
+    //         setData(value)
+    //     },
+    //     [key]
+    // )
+
+    useEffect(() => {
+        const set = async () => {
             const collection = await framer.getManagedCollection()
 
-            if (typeof value === "object") {
-                await collection.setPluginData(key, JSON.stringify(value))
+            if (typeof data === "object") {
+                await collection.setPluginData(key, JSON.stringify(data))
             } else {
-                await collection.setPluginData(key, value as string)
+                await collection.setPluginData(key, data as string)
             }
+        }
 
-            setData(value)
-        },
-        [key]
-    )
+        set()
+    }, [data, key])
 
-    return [data, set, get] as const
+    return [data, setData] as const
 }

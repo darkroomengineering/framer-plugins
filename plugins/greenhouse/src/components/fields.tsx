@@ -44,8 +44,6 @@ export function Fields({
         collectionId: field.collectionId,
     }))
 
-    console.log({ collections })
-
     useEffect(() => {
         if (collections.length === 0) return
 
@@ -96,7 +94,7 @@ export function Fields({
             } else {
                 setTimeout(() => {
                     setSlugFieldId(slugSelectRef.current?.value ?? "")
-                }, 1000)
+                }, 500)
             }
         }
 

@@ -8,8 +8,6 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
     const [contentTypeId, setContentTypeId] = useState<string | null>(null)
     const [contentTypes, setContentTypes] = useState<{ id: string; entries: Job[] | Department[] | Office[] }[]>([])
 
-    console.log("contentTypes", contentTypes)
-
     useEffect(() => {
         const fetchContentTypes = async () => {
             const contentTypes = await getAllContentTypes(false)
@@ -20,8 +18,6 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
                     entries,
                 }))
                 .filter(({ entries }) => entries?.length > 0)
-
-            console.log("contentTypesWithEntries", contentTypesWithEntries)
 
             setContentTypes(contentTypesWithEntries)
         }
