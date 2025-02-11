@@ -13,7 +13,6 @@ export function App() {
     const [isGreenhouseInitialized, setIsGreenhouseInitialized] = useState<boolean>(false)
     const [isMounted, setIsMounted] = useState(false)
     const [mode] = useState<Mode>(framer.mode)
-    const [fields, setFields] = useState<CollectionField[]>([])
 
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -38,41 +37,45 @@ export function App() {
         }
     }, [spaceId, setSpaceId])
 
-    const sync = useCallback(async () => {
-        console.log("syncing", slugFieldId, contentTypeId)
-        if (!slugFieldId || !contentTypeId) return
+    const sync = useCallback(
+        async (slugId: string | null = slugFieldId) => {
+            if (!slugId || !contentTypeId) return
 
-        const contentType = CONTENT_TYPES.find(contentType => contentType.id === contentTypeId)
+            console.log("syncing", slugId, contentTypeId)
 
-        if (!contentType) return // TODO: handle this, content type not supported
+            const contentType = CONTENT_TYPES.find(contentType => contentType.id === contentTypeId)
 
-        const collection = await framer.getManagedCollection()
+            if (!contentType) return // TODO: handle this, content type not supported
 
-        const fields = await collection.getFields()
+            const collection = await framer.getManagedCollection()
 
-        const entries = await getContentType(contentTypeId)
+            const fields = await collection.getFields()
 
-        const mappedEntries = entries.map(entry => {
-            const mappedEntry = contentType.mapEntry(entry)
-            // console.log(mappedEntry)
+            const entries = await getContentType(contentTypeId)
 
-            return {
-                id: mappedEntry.id,
-                slug: slugFieldId === "id" ? `${mappedEntry.id}` : `${mappedEntry[slugFieldId]}-${mappedEntry.id}`,
-                fieldData: Object.fromEntries(
-                    Object.entries(mappedEntry).filter(([key]) => fields.map(field => field.id).includes(key))
-                ),
-            }
-        })
+            const mappedEntries = entries.map(entry => {
+                const mappedEntry = contentType.mapEntry(entry)
+                // console.log(mappedEntry)
 
-        const existingEntriesIds = await collection.getItemIds()
-        const entriesToBeRemoved = existingEntriesIds.filter(id => !mappedEntries.some(entry => entry.id === id))
+                return {
+                    id: mappedEntry.id,
+                    slug: slugId === "id" ? `${mappedEntry.id}` : `${mappedEntry[slugId]}-${mappedEntry.id}`,
+                    fieldData: Object.fromEntries(
+                        Object.entries(mappedEntry).filter(([key]) => fields.map(field => field.id).includes(key))
+                    ),
+                }
+            })
 
-        await collection.addItems(mappedEntries as CollectionItem[])
-        await collection.removeItems(entriesToBeRemoved)
+            const existingEntriesIds = await collection.getItemIds()
+            const entriesToBeRemoved = existingEntriesIds.filter(id => !mappedEntries.some(entry => entry.id === id))
 
-        framer.closePlugin()
-    }, [slugFieldId, contentTypeId])
+            await collection.addItems(mappedEntries as CollectionItem[])
+            await collection.removeItems(entriesToBeRemoved)
+
+            framer.closePlugin()
+        },
+        [slugFieldId, contentTypeId]
+    )
 
     // sync
     useEffect(() => {
@@ -81,22 +84,13 @@ export function App() {
         }
     }, [mode, isGreenhouseInitialized, sync, slugFieldId, contentTypeId])
 
-    // sync on manage
-    useEffect(() => {
-        const set = async () => {
-            const collection = await framer.getManagedCollection()
-            await collection.setFields(fields as ManagedCollectionField[])
-            await sync()
-        }
-
-        if (mode === "configureManagedCollection" && fields.length > 0 && slugFieldId && isGreenhouseInitialized) {
-            set()
-        }
-    }, [mode, fields, slugFieldId, sync, isGreenhouseInitialized])
-
     const onSubmitFields = async (slugId: string, fields: CollectionField[]) => {
-        setFields(fields)
         setSlugFieldId(slugId)
+
+        const collection = await framer.getManagedCollection()
+        await collection.setFields(fields as ManagedCollectionField[])
+
+        await sync(slugId)
     }
 
     if (mode === "syncManagedCollection") return

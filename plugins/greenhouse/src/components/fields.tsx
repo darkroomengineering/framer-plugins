@@ -32,6 +32,8 @@ export function Fields({
 
     const collections = useCollections()
 
+    console.log({ collections })
+
     const filteredMappedContentType = mappedContentType?.filter(
         ({ isDisabled, isMissingReference }) => !isDisabled && !isMissingReference
     )

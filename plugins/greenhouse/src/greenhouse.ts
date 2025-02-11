@@ -48,6 +48,27 @@ export type Office = {
     departments: Department[]
 }
 
+export type Degree = {
+    id: string
+    text: string
+}
+
+export type Discipline = {
+    id: string
+    text: string
+}
+
+export type School = {
+    id: string
+    text: string
+}
+
+export type Section = {
+    id: string
+    name: string
+    jobs: Job[]
+}
+
 export const CONTENT_TYPES = [
     {
         id: "jobs",
@@ -144,6 +165,7 @@ export const CONTENT_TYPES = [
                 id: "departments",
                 name: "Departments",
                 type: "multiCollectionReference",
+                contentTypeId: "departments",
             },
         ],
         mapEntry: (entry: Office) => {
@@ -190,24 +212,103 @@ export const CONTENT_TYPES = [
         name: "Degrees",
         path: "/education/degrees",
         key: "items",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "text",
+                name: "text",
+                type: "string",
+            },
+        ],
+        mapEntry: (entry: Degree) => {
+            return {
+                id: String(entry?.id),
+                text: entry?.text,
+            }
+        },
     },
     {
         id: "disciplines",
         name: "Disciplines",
         path: "/education/disciplines",
         key: "items",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "text",
+                name: "text",
+                type: "string",
+            },
+        ],
+        mapEntry: (entry: Discipline) => {
+            return {
+                id: String(entry?.id),
+                text: entry?.text,
+            }
+        },
     },
     {
         id: "schools",
         name: "Schools",
         path: "/education/schools",
         key: "items",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "text",
+                name: "text",
+                type: "string",
+            },
+        ],
+        mapEntry: (entry: School) => {
+            return {
+                id: String(entry?.id),
+                text: entry?.text,
+            }
+        },
     },
     {
         id: "sections",
         name: "Sections",
         path: "/sections",
         key: "sections",
+        fields: [
+            {
+                id: "id",
+                name: "Id",
+                type: "string",
+            },
+            {
+                id: "name",
+                name: "Name",
+                type: "string",
+            },
+            {
+                id: "jobs",
+                name: "Jobs",
+                type: "multiCollectionReference",
+                contentTypeId: "jobs",
+            },
+        ],
+        mapEntry: (entry: Section) => {
+            return {
+                id: String(entry?.id),
+                name: entry?.name,
+                jobs: entry?.jobs?.map((job: Job) => String(job.id)),
+            }
+        },
     },
 ]
 
@@ -227,7 +328,7 @@ export async function initGreenhouse(spaceId: string) {
 export async function getContentType(
     contentType: string,
     all: boolean = true
-): Promise<Job[] | Department[] | Office[]> {
+): Promise<Job[] | Department[] | Office[] | Degree[] | Discipline[] | School[] | Section[]> {
     if (!greenhouseToken) throw new Error("Greenhouse token not set")
 
     const response = await fetch(
@@ -268,7 +369,7 @@ export async function getContentType(
 
 export async function getAllContentTypes(
     all: boolean = true
-): Promise<Record<string, Job[] | Department[] | Office[]>> {
+): Promise<Record<string, Job[] | Department[] | Office[] | Degree[] | Discipline[] | School[] | Section[]>> {
     if (!greenhouseToken) throw new Error("Greenhouse token not set")
 
     const contentTypes = await Promise.all(
