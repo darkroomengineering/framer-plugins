@@ -1,5 +1,11 @@
 import { ManagedCollectionField } from "framer-plugin"
 
+function decodeHtml(html: string) {
+    const textarea = document.createElement("textarea")
+    textarea.innerHTML = html
+    return textarea.value
+}
+
 type CollectionFieldType = ManagedCollectionField["type"]
 
 export const FIELD_TYPE_OPTIONS: { type: CollectionFieldType; label: string }[] = [
@@ -112,7 +118,7 @@ export const CONTENT_TYPES = [
                 requisition_id: String(entry?.requisition_id),
                 location: entry?.location?.name,
                 absolute_url: String(entry?.absolute_url),
-                content: entry?.content,
+                content: decodeHtml(entry?.content),
                 departments: entry?.departments?.map((department: Department) => String(department.id)),
                 offices: entry?.offices?.map((office: Office) => String(office.id)),
             }
