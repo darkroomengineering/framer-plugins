@@ -4,7 +4,7 @@ import { framer } from "framer-plugin"
 import { useEffect, useLayoutEffect, useState } from "react"
 import { CONTENT_TYPES, Department, getAllContentTypes, Job, Office } from "../greenhouse"
 
-export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: string | null) => void }) {
+export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: string) => void }) {
     const [contentTypeId, setContentTypeId] = useState<string | null>(null)
     const [contentTypes, setContentTypes] = useState<{ id: string; entries: Job[] | Department[] | Office[] }[]>([])
 
@@ -70,8 +70,9 @@ export function ContentTypePicker({ onSubmit }: { onSubmit: (contentTypeId: stri
                     disabled={!contentTypeId || contentTypes.length === 0}
                     className="flex justify-center items-center relative py-2 framer-button-secondary w-full"
                     onClick={() => {
-                        // console.log("contentTypeId", contentTypeId)
-                        onSubmit(contentTypeId)
+                        if (contentTypeId) {
+                            onSubmit(contentTypeId)
+                        }
                     }}
                 >
                     Next

@@ -18,12 +18,6 @@ export function App() {
     const slugFieldId = useStore(state => state.slugFieldId)
     const setSlugFieldId = useStore(state => state.setSlugFieldId)
 
-    console.log({
-        spaceId,
-        contentTypeId,
-        slugFieldId,
-    })
-
     useEffect(() => {
         const timeout = setTimeout(() => {
             // wait for the plugin to be mounted to avoid flickers
@@ -108,25 +102,13 @@ export function App() {
 
     return (
         <>
-            {/* <button
-                className="fixed"
-                onClick={() => {
-                    setSpaceId("")
-                    setContentTypeId("")
-                    setIsGreenhouseInitialized(false)
-
-                    framer.setPluginData(`${pkg.name}:collections`, JSON.stringify([]))
-                }}
-            >
-                reset
-            </button> */}
             <div className="w-full px-[15px] flex flex-col flex-1 overflow-y-auto no-scrollbar">
-                {!spaceId ? (
+                {!spaceId || !isGreenhouseInitialized ? (
                     <Auth onSubmit={setSpaceId} />
                 ) : !contentTypeId ? (
-                    isGreenhouseInitialized && <ContentTypePicker onSubmit={setContentTypeId} />
+                    <ContentTypePicker onSubmit={setContentTypeId} />
                 ) : (
-                    isGreenhouseInitialized && <Fields contentTypeId={contentTypeId} onSubmit={onSubmitFields} />
+                    <Fields contentTypeId={contentTypeId} onSubmit={onSubmitFields} />
                 )}
             </div>
         </>

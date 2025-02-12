@@ -6,6 +6,7 @@ import { initGreenhouse } from "../greenhouse"
 export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
     const [spaceId, setSpaceId] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     useLayoutEffect(() => {
         framer.showUI({
@@ -18,7 +19,6 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
     useEffect(() => {
         async function prefill() {
             const spaceId = await framer.getPluginData("greenhouse")
-            console.log("spaceId", spaceId)
             if (spaceId) {
                 setSpaceId(spaceId)
             }
@@ -42,7 +42,7 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
             <div className="flex flex-col gap-[10px] text-secondary">
                 <div className="row justify-between items-center items-center">
                     <label htmlFor="spaceId" className="ml-[15px]">
-                        Board Token
+                        Board Token {error && <span className="text-framer-red">(Invalid)</span>}
                     </label>
                     <input
                         id="spaceId"
@@ -50,7 +50,10 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
                         className="w-[134px]"
                         placeholder="Space ID"
                         value={spaceId}
-                        onChange={e => setSpaceId(e.target.value)}
+                        onChange={e => {
+                            setSpaceId(e.target.value)
+                            setError(null)
+                        }}
                     />
                 </div>
             </div>
@@ -65,10 +68,11 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
                             await initGreenhouse(spaceId)
                             onSubmit(spaceId)
                         } catch (error) {
-                            console.log("not valid")
+                            setError("Invalid space ID")
+                            throw new Error("Invalid space ID")
+                        } finally {
+                            setIsLoading(false)
                         }
-
-                        setIsLoading(false)
                     }}
                 >
                     {isLoading ? "Connecting..." : "Connect"}

@@ -5,6 +5,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
 import cx from "classnames"
 import { CollectionField, framer, ManagedCollectionField } from "framer-plugin"
 import { useCollections } from "../hooks/use-collections"
+import { useStore } from "../store"
 
 type CollectionFieldType = ManagedCollectionField["type"]
 
@@ -31,8 +32,6 @@ export function Fields({
     >([])
 
     const collections = useCollections()
-
-    console.log({ collections })
 
     const filteredMappedContentType = mappedContentType?.filter(
         ({ isDisabled, isMissingReference }) => !isDisabled && !isMissingReference
@@ -83,25 +82,8 @@ export function Fields({
 
     const slugableFields = filteredMappedContentType?.filter(({ type }) => type === "string")
 
-    const [slugFieldId, setSlugFieldId] = useState<string | null>(null)
+    const [slugFieldId, setSlugFieldId] = useState<string | null>(useStore.getState().slugFieldId)
     const slugSelectRef = useRef<HTMLSelectElement>(null)
-
-    useEffect(() => {
-        const fetch = async () => {
-            const collection = await framer.getManagedCollection()
-            const slugFieldId = await collection.getPluginData("slugFieldId")
-
-            if (slugFieldId) {
-                setSlugFieldId(slugFieldId)
-            } else {
-                setTimeout(() => {
-                    setSlugFieldId(slugSelectRef.current?.value ?? "")
-                }, 500)
-            }
-        }
-
-        fetch()
-    }, [])
 
     const [isLoading, setIsLoading] = useState(false)
     const { ref: scrollRef, inView: isAtBottom } = useInView({ threshold: 1 })
@@ -234,7 +216,7 @@ export function Fields({
                     type="button"
                     disabled={
                         isLoading ||
-                        !slugFieldId ||
+                        // !slugFieldId ||
                         !mappedContentType.length ||
                         !slugableFields.length ||
                         !fields.length
@@ -243,11 +225,10 @@ export function Fields({
                     onClick={async () => {
                         setIsLoading(true)
                         try {
-                            console.log(slugSelectRef.current?.value)
                             // @ts-expect-error: button can't be clicked if it's disabled
                             await onSubmit(slugSelectRef.current?.value, fields)
                         } catch (error) {
-                            console.error(error)
+                            throw new Error("Invalid slug field")
                         } finally {
                             setIsLoading(false)
                         }
