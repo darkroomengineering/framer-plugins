@@ -2,17 +2,27 @@ import { useCallback, useEffect, useLayoutEffect, useState } from "react"
 import { Auth } from "./components/auth"
 import { ContentTypePicker } from "./components/content-type-picker"
 import { Fields } from "./components/fields"
-import { usePluginData } from "./hooks/use-plugin-data"
 import { CONTENT_TYPES, getContentType, initGreenhouse } from "./greenhouse"
 import { CollectionField, CollectionItem, framer, ManagedCollectionField, Mode } from "framer-plugin"
+import { useStore } from "./store"
 
 export function App() {
-    const [spaceId, setSpaceId] = usePluginData("spaceId", "")
-    const [contentTypeId, setContentTypeId] = usePluginData("contentTypeId", "")
-    const [slugFieldId, setSlugFieldId] = usePluginData("slugFieldId", "")
     const [isGreenhouseInitialized, setIsGreenhouseInitialized] = useState<boolean>(false)
     const [isMounted, setIsMounted] = useState(false)
     const [mode] = useState<Mode>(framer.mode)
+
+    const spaceId = useStore(state => state.spaceId)
+    const setSpaceId = useStore(state => state.setSpaceId)
+    const contentTypeId = useStore(state => state.contentTypeId)
+    const setContentTypeId = useStore(state => state.setContentTypeId)
+    const slugFieldId = useStore(state => state.slugFieldId)
+    const setSlugFieldId = useStore(state => state.setSlugFieldId)
+
+    console.log({
+        spaceId,
+        contentTypeId,
+        slugFieldId,
+    })
 
     useEffect(() => {
         const timeout = setTimeout(() => {

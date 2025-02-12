@@ -1,14 +1,14 @@
 import { Collection, framer } from "framer-plugin"
 import { useEffect, useMemo, useState } from "react"
 import pkg from "../../package.json"
-import { usePluginData } from "./use-plugin-data"
+import { useStore } from "../store"
 
-type CollectionWithContentTypeId = { id: string, name: string, contentTypeId: string }
+type CollectionWithContentTypeId = { id: string; name: string; contentTypeId: string }
 
 export function useCollections(): CollectionWithContentTypeId[] {
     const [framerCollections, setFramerCollections] = useState<Collection[]>([])
     const [collections, setCollections] = useState<CollectionWithContentTypeId[]>([])
-    const [contentTypeId] = usePluginData("contentTypeId", "")
+    const contentTypeId = useStore(state => state.contentTypeId)
 
     useEffect(() => {
         if (!contentTypeId) return

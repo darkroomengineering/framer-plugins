@@ -15,7 +15,7 @@ export const FIELD_TYPE_OPTIONS: { type: CollectionFieldType; label: string }[] 
     { type: "string", label: "String" },
     { type: "formattedText", label: "Formatted Text" },
     { type: "image", label: "Image" },
-    // { type: "link", label: "Link" }, // this is string
+    { type: "link", label: "Link" }, // this is string
     { type: "date", label: "Date" },
     // { type: "enum", label: "Option" }, // this doesn't make sense for the collection
     // { type: "file", label: "File" }, // this cannot be handled by the plugin
@@ -110,7 +110,7 @@ export const CONTENT_TYPES = [
             {
                 id: "absolute_url",
                 name: "Absolute URL",
-                type: "string",
+                type: "link",
             },
             {
                 id: "content",
