@@ -69,9 +69,8 @@ export function Auth({ onSubmit }: { onSubmit: (spaceId: string) => void }) {
                             onSubmit(spaceId)
                         } catch (error) {
                             setError("Invalid space ID")
-                            throw new Error("Invalid space ID")
-                        } finally {
                             setIsLoading(false)
+                            throw new Error("Invalid space ID")
                         }
                     }}
                 >

@@ -315,6 +315,8 @@ export const CONTENT_TYPES = [
 let greenhouseToken = ""
 
 export async function initGreenhouse(spaceId: string) {
+    if (greenhouseToken === spaceId) return true
+
     const response = await fetch(`https://boards-api.greenhouse.io/v1/boards/${spaceId}`)
     if (!response.ok) {
         throw new Error("Invalid space ID")
