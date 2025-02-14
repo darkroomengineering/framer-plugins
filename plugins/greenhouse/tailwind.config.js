@@ -29,7 +29,7 @@ export default {
             },
 
             gridTemplateColumns: {
-                fieldPicker: "1fr 8px 1fr 1fr",
+                fieldPicker: "1fr 8px 1fr",
             },
             fontSize: {
                 "2xs": "10px",

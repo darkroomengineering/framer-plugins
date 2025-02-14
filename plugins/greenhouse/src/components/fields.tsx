@@ -127,10 +127,9 @@ export function Fields({
             <div className="grid grid-cols items-center grid-cols-fieldPicker gap-[10px] mb-auto overflow-hidden">
                 <span className="col-span-2">Column</span>
                 <span>Field</span>
-                <span>Type</span>{" "}
                 {mappedContentType
                     ?.sort((a, b) => (a.isMissingReference ? 1 : b.isMissingReference ? -1 : 0))
-                    ?.map(({ id, name, type, isDisabled, isMissingReference, collectionId, defaultType }, index) => (
+                    ?.map(({ id, name, isDisabled, isMissingReference }, index) => (
                         <Fragment key={id}>
                             <CheckboxTextfield
                                 disabled={Boolean(isMissingReference)}
@@ -174,36 +173,6 @@ export function Fields({
                                     })
                                 }}
                             />
-                            <select
-                                className={cx("w-full", {
-                                    "opacity-50": isDisabled || isMissingReference,
-                                })}
-                                value={isMissingReference ? "string" : type}
-                                disabled={isDisabled || isMissingReference}
-                                onChange={e => {
-                                    setMappedContentType(prev => {
-                                        if (!prev) return prev
-                                        const newMappedContentType = structuredClone(prev)
-                                        newMappedContentType[index].type = e.target.value as CollectionFieldType
-                                        return newMappedContentType
-                                    })
-                                }}
-                            >
-                                {collectionId || isMissingReference ? (
-                                    <>
-                                        <option value="string">String</option>
-                                        <option value={defaultType}>
-                                            {collections.find(({ id }) => id === collectionId)?.name}
-                                        </option>
-                                    </>
-                                ) : (
-                                    FIELD_TYPE_OPTIONS.map(({ type, label }) => (
-                                        <option value={type} key={label}>
-                                            {label}
-                                        </option>
-                                    ))
-                                )}
-                            </select>
                         </Fragment>
                     ))}
                 {mappedContentType && mappedContentType?.length > 6 && !isAtBottom && (
