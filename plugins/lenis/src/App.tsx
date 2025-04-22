@@ -1,42 +1,21 @@
 import { framer } from "framer-plugin"
 import "./App.css"
 
-// Add Lenis type definitions
-interface LenisOptions {
-    duration?: number;
-    easing?: (t: number) => number;
-    direction?: 'vertical' | 'horizontal';
-    gestureDirection?: 'vertical' | 'horizontal';
-    smooth?: boolean;
-    smoothTouch?: boolean;
-    touchMultiplier?: number;
-}
-
-interface LenisInstance {
-    raf: (time: number) => void;
-}
-
-declare global {
-    interface Window {
-        Lenis: new (options: LenisOptions) => LenisInstance;
-    }
-}
-
 framer.showUI({
     position: "top right",
     width: 300,
     height: 400,
-    resizable: false,   
+    resizable: false,
 })
 
 const applyLenis = async () => {
     const desktopFrame = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
-    
+
     if (!desktopFrame) {
         console.log("No frame with name 'Desktop' found")
         return
     }
-    
+
     const component = await framer.addComponentInstance({
         url: "https://framer.com/m/Lenis-y33L.js",
     })
@@ -47,16 +26,9 @@ const applyLenis = async () => {
 export function App() {
     return (
         <main className="main">
-            <button
-                type="button"
-                onClick={applyLenis}
-                className="lenis-button"
-            >
+            <button type="button" onClick={applyLenis} className="lenis-button">
                 Apply Lenis
             </button>
         </main>
     )
 }
-
-
-
