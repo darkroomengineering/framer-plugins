@@ -1,0 +1,25 @@
+/* Your Plugin CSS */
+
+
+.main {
+    padding-inline: 10px;
+    display: flex;
+    flex-direction: column;
+    row-gap: 10px;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    background-color: #000000;
+}
+
+.lenis-button{
+    background-color: #C20510;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+
+.lenis-button:hover{
+    background-color: #e30613;
+}
+
+
