@@ -1,14 +1,13 @@
-/* Your Plugin CSS */
-
 
 .main {
     padding-inline: 10px;
+    padding-block: 30px;
     display: flex;
     flex-direction: column;
-    row-gap: 10px;
-    justify-content: center;
     align-items: center;
+    row-gap: 10px;
     height: 100%;
+    width: 100%;
     background-color: #000000;
 }
 
@@ -16,10 +15,77 @@
     background-color: #C20510;
     text-transform: uppercase;
     color: #ffffff;
+    margin-bottom: 30px;
 }
 
 .lenis-button:hover{
+    background-color: #e30613 ;
+}
+
+.lenis-applied{
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+
+.buttons-container{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    column-gap: 6px;
+    width: 100%;
+}
+
+.inner{
+    display: flex;
+    align-items: center;
+    column-gap: 6px;
+}
+
+.inner-range{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 160px;
+}
+
+.button{
+    flex: 1;
+    background-color:#C20510 !important;
+    text-transform: uppercase;
+    color: #ffffff;
+    font-size: 10px;
+    padding-inline: 5px;
+    padding-block: 2px;
+    width: 80px;
+}
+
+.button:hover{
     background-color: #e30613;
 }
+
+.disabled{
+    opacity: 0.5;
+}
+
+input[type="range"]{
+    height: 10px;
+    background: #800307;
+    border-radius: 10px;
+    padding: 0;
+    cursor: pointer;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
