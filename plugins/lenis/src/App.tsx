@@ -1,12 +1,13 @@
 import { framer, isComponentInstanceNode } from "framer-plugin"
 import "./App.css"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import cn from 'clsx'
+
 
 framer.showUI({
     position: "top right",
     width: 350,
-    height: 280,
+    height: 250,
     resizable: false,
 })
 
@@ -33,26 +34,29 @@ const applyLenis = async () => {
     })
 
     await framer.setParent(component?.id, desktopFrame?.id)
-    await framer.setAttributes(component?.id, { 
+    await framer.setAttributes(component?.id, {
         name: LENIS_COMPONENT_NAME,
-        visible: true,
-        controls:{
+        controls: {
             orientation: 'vertical',
             infinite: false,
-            intensity: 1
+            intensity: 12
         }
     })
     console.log("Lenis component added successfully to Desktop frame!")
 }
 
+
+const MIN = 1
+const MAX = 100
+
 export function App() {
     const [hasLenis, setHasLenis] = useState(false)
     const [lenisConfig, setLenisConfig] = useState({
-        isVisible: true,
         orientation: 'vertical',
         isInfinite: false,
         intensity: 1
     })
+    const inputTextRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         const checkAndUpdate = async () => {
@@ -64,12 +68,12 @@ export function App() {
         return framer.subscribeToSelection(checkAndUpdate)
     }, [])
 
-    const updateLenisConfig = async (key: 'isVisible' | 'orientation' | 'isInfinite' | 'intensity', value: boolean | string | number) => {
+
+    const updateLenisConfig = async (key: 'orientation' | 'isInfinite' | 'intensity', value: boolean | string | number) => {
         const lenis = await getLenisComponent()
         if (!lenis) return
 
         const configMap = {
-            isVisible: { visible: value as boolean },
             orientation: { controls: { orientation: value as string } },
             isInfinite: { controls: { infinite: value as boolean } },
             intensity: { controls: { intensity: value as number } }
@@ -81,57 +85,72 @@ export function App() {
 
     return (
         <main className="main">
-            <button 
-                type="button" 
-                onClick={applyLenis} 
+            <button
+                type="button"
+                onClick={applyLenis}
                 className={cn("lenis-button", hasLenis && "lenis-applied")}
             >
                 {hasLenis ? "Lenis Applied" : "Apply Lenis"}
             </button>
             <div className="buttons-container">
-                <p>Visibility</p>
-                <div className="inner">
-                    <button aria-label="Visible" type='button' className={cn("button ", !lenisConfig?.isVisible && 'disabled')} onClick={() => updateLenisConfig('isVisible', true)}>
-                        Visible
-                    </button>
-                    <button aria-label="Hidden" type='button' className={cn("button ", lenisConfig?.isVisible && 'disabled')} onClick={() => updateLenisConfig('isVisible', false)}>
-                        Hidden
-                    </button>
-                </div>
-            </div>
-            <div className="buttons-container">
                 <p>Orientation</p>
-                <div className='inner'>
-                    <button aria-label="Vertical" type='button' className={cn("button", lenisConfig?.orientation !== 'vertical' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'vertical')}>
+                <div className='inner' data-orientation={lenisConfig?.orientation}>
+                    <div className="toggle" />
+                    <button data-active={lenisConfig?.orientation === 'vertical'} aria-label="Vertical" type='button' className={cn("button", lenisConfig?.orientation !== 'vertical' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'vertical')}>
                         Vertical
                     </button>
-                    <button aria-label="Horizontal" type='button' className={cn("button", lenisConfig?.orientation !== 'horizontal' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'horizontal')} >
+                    <button data-active={lenisConfig?.orientation === 'horizontal'} aria-label="Horizontal" type='button' className={cn("button", lenisConfig?.orientation !== 'horizontal' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'horizontal')} >
                         Horizontal
                     </button>
                 </div>
             </div>
             <div className="buttons-container">
                 <p>Infinite</p>
-                <div className="inner">
-                    <button aria-label="Inifinte" type='button' className={cn("button", !lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', true)}>
+                <div className="inner" data-infinite={lenisConfig?.isInfinite}>
+                    <div className="toggle" />
+                    <button data-active={lenisConfig?.isInfinite} aria-label="Inifinte" type='button' className={cn("button", !lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', true)}>
                         Yes
                     </button>
-                    <button aria-label="Not Infinite" type='button' className={cn("button", lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', false)} >
+                    <button data-active={!lenisConfig?.isInfinite} aria-label="Not Infinite" type='button' className={cn("button", lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', false)} >
                         No
                     </button>
                 </div>
             </div>
             <div className="buttons-container">
                 <p>Intensity</p>
-                <div className='inner-range'>
-                    <p className='range-value'>{lenisConfig.intensity}</p>
-                    <input 
-                        type="range" 
-                        min={1} 
-                        max={100} 
-                        step={1} 
-                        onChange={(e) => updateLenisConfig('intensity', Number.parseInt(e.target.value))}
+                <div className="inner-range">
+                    <input
+                        className="range-text"
+                        type="text"
+                        ref={inputTextRef}
+                        value={lenisConfig.intensity.toString()}
+                        onChange={(e) => {
+                            let float = Number.parseFloat(e.target.value)
+                            if (Number.isNaN(float)) return
+                            float = Math.min(Math.max(MIN, float), MAX)
+                            updateLenisConfig('intensity', float)
+                        }}
+                        onBlur={(e) => {
+                            let float = Number.parseFloat(e.target.value)
+                            if (Number.isNaN(float)) return
+
+                            float = Math.min(Math.max(MIN, float), MAX)
+                            updateLenisConfig('intensity', float)
+                        }}
                     />
+                    <div className="input-range">
+                        <input
+                            type="range"
+                            min={MIN}
+                            max={MAX}
+                            step="1"
+                            onChange={(e) => {
+                                const newValue = Number.parseFloat(e.target.value)
+                                updateLenisConfig('intensity', newValue)
+                            }}
+                            value={lenisConfig.intensity}
+                        />
+                    </div>
                 </div>
             </div>
         </main>

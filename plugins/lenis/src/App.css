@@ -1,4 +1,3 @@
-
 .main {
     padding-inline: 10px;
     padding-block: 30px;
@@ -8,18 +7,11 @@
     row-gap: 10px;
     height: 100%;
     width: 100%;
-    background-color: #000000;
 }
 
 .lenis-button{
-    background-color: #C20510;
     text-transform: uppercase;
-    color: #ffffff;
-    margin-bottom: 30px;
-}
-
-.lenis-button:hover{
-    background-color: #e30613 ;
+    background-color: #555555;
 }
 
 .lenis-applied{
@@ -36,45 +28,124 @@
     width: 100%;
 }
 
+
+
+
+.button{
+    flex: 1;
+    font-size: 10px;   
+    border-radius: 6px;
+    z-index: 1;
+    padding-block: 6px;
+    width: 62px;
+    padding-inline: 23px;
+    background: none;
+}
+
+.button:hover{
+    background: none !important;
+}
+
+button[data-active="true"],button[data-active="horizontal"], button[data-active="vertical"] {
+    background:none !important;
+}
+
+
+
 .inner{
     display: flex;
     align-items: center;
     column-gap: 6px;
+    padding:2px;
+    border-radius: 8px;
+    background-color: #2b2b2b;
+    position: relative;
+    width: 134px;
 }
 
+.toggle{
+    position:absolute;
+    inset: 2px;
+    width: 62px;
+    background-color: #555555;
+    border-radius: 6px;
+    transition: transform 250ms ease;
+    z-index: 0;
+}
+
+.inner[data-orientation="horizontal"] .toggle {
+    transform: translateX(68px);
+}
+
+.inner[data-infinite="true"] .toggle {
+    transform: translateX(0);
+} 
+
+.inner[data-infinite="false"] .toggle {
+    transform: translateX(68px);
+}
+
+/* Range Styles */
 .inner-range{
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 160px;
+    column-gap: 10px;
+    width: 134px;
 }
 
-.button{
-    flex: 1;
-    background-color:#C20510 !important;
-    text-transform: uppercase;
-    color: #ffffff;
-    font-size: 10px;
-    padding-inline: 5px;
-    padding-block: 2px;
-    width: 80px;
+.range-text{
+    width: 62px;
+    padding-block: 6px;
+    border-radius: 5px;
 }
 
-.button:hover{
-    background-color: #e30613;
-}
-
-.disabled{
-    opacity: 0.5;
-}
 
 input[type="range"]{
+    -webkit-appearance: none;
     height: 10px;
-    background: #800307;
-    border-radius: 10px;
+    width: 100%;
     padding: 0;
+}
+
+input[type="range"]::-webkit-slider-runnable-track{
+    border-radius: 2px;
+    height: 2px;
+    width: 100%;
     cursor: pointer;
 }
+
+input[type="range"]::-webkit-slider-thumb{
+    cursor: pointer;
+    height: 10px;
+    width: 10px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background-color:#fff;
+}
+
+
+body[data-framer-theme="light"] {
+    .toggle {
+        background-color: #ffffff;
+        box-shadow:  0px 2px 4px 0px rgb(0,0,0,0.15);
+    }
+
+    .lenis-button{
+        background-color: #f2f2f2;
+        color: #0099ff;
+    }
+
+    button, .range-text{
+        color: #0099ff;
+    }
+
+    .inner{
+        background-color: #f2f2f2;
+    }
+
+}
+
 
 
 
