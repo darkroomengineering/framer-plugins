@@ -1,158 +1,104 @@
 import { framer, isComponentInstanceNode } from "framer-plugin"
 import "./App.css"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import cn from 'clsx'
+import { FormsIcon, ChartIcon, DatabaseIcon } from "./components/Icons"
+import { Route, Switch, useLocation } from "wouter"
+import SmoothScrollPage from "./pages/canvas/SmoothScroll"
+
 
 
 framer.showUI({
     position: "top right",
-    width: 350,
-    height: 250,
+    width: 250,
+    height: 350,
     resizable: false,
 })
 
-const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
-const LENIS_COMPONENT_NAME = "Lenis"
+const LENIS_INFINITE_COMPONENT_URL = "https://framer.com/m/SeamlessInfinite-Ewnw.js@STKcFeAGI8EdZuHRxhZd"
+const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
 
-const getLenisComponent = async () => {
+
+export const getInfiniteComponent = async () => {
     const desktopFrame = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
     if (!desktopFrame) return null
 
     const children = await framer.getChildren(desktopFrame.id)
-    return children.find(child => isComponentInstanceNode(child) && child.name === LENIS_COMPONENT_NAME)
+    return children.find(child => isComponentInstanceNode(child) && child.name === "SeamlessInfinite")
 }
 
-const applyLenis = async () => {
-    const desktopFrame = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
-    if (!desktopFrame) {
-        console.log("No frame with name 'Desktop' found")
-        return
-    }
+
+const infiniteScroll = async () => {
+    const desktop = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
+    if (!desktop) return
 
     const component = await framer.addComponentInstance({
-        url: LENIS_COMPONENT_URL,
+        url: LENIS_INFINITE_COMPONENT_URL,
     })
 
-    await framer.setParent(component?.id, desktopFrame?.id)
+    await framer.setParent(component?.id, desktop?.id)
     await framer.setAttributes(component?.id, {
-        name: LENIS_COMPONENT_NAME,
-        controls: {
-            orientation: 'vertical',
-            infinite: false,
-            intensity: 12
-        }
+        name: INFINITE_COMPONENT_NAME,
     })
-    console.log("Lenis component added successfully to Desktop frame!")
 }
 
 
-const MIN = 1
-const MAX = 100
 
 export function App() {
-    const [hasLenis, setHasLenis] = useState(false)
-    const [lenisConfig, setLenisConfig] = useState({
-        orientation: 'vertical',
-        isInfinite: false,
-        intensity: 1
-    })
-    const inputTextRef = useRef<HTMLInputElement>(null)
+    const [hasInfinite, setHasInfinite] = useState(false)
+    const [, navigate] = useLocation()
 
     useEffect(() => {
         const checkAndUpdate = async () => {
-            const lenis = await getLenisComponent()
-            setHasLenis(!!lenis)
+            const infinite = await getInfiniteComponent()
+            setHasInfinite(!!infinite)
         }
 
         checkAndUpdate()
         return framer.subscribeToSelection(checkAndUpdate)
     }, [])
 
-
-    const updateLenisConfig = async (key: 'orientation' | 'isInfinite' | 'intensity', value: boolean | string | number) => {
-        const lenis = await getLenisComponent()
-        if (!lenis) return
-
-        const configMap = {
-            orientation: { controls: { orientation: value as string } },
-            isInfinite: { controls: { infinite: value as boolean } },
-            intensity: { controls: { intensity: value as number } }
-        }
-
-        await framer.setAttributes(lenis.id, configMap[key])
-        setLenisConfig(prev => ({ ...prev, [key]: value }))
-    }
-
     return (
-        <main className="main">
-            <button
-                type="button"
-                onClick={applyLenis}
-                className={cn("lenis-button", hasLenis && "lenis-applied")}
-            >
-                {hasLenis ? "Lenis Applied" : "Apply Lenis"}
-            </button>
-            <div className="buttons-container">
-                <p>Orientation</p>
-                <div className='inner' data-orientation={lenisConfig?.orientation}>
-                    <div className="toggle" />
-                    <button data-active={lenisConfig?.orientation === 'vertical'} aria-label="Vertical" type='button' className={cn("button", lenisConfig?.orientation !== 'vertical' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'vertical')}>
-                        Vertical
-                    </button>
-                    <button data-active={lenisConfig?.orientation === 'horizontal'} aria-label="Horizontal" type='button' className={cn("button", lenisConfig?.orientation !== 'horizontal' && 'disabled')} onClick={() => updateLenisConfig('orientation', 'horizontal')} >
-                        Horizontal
-                    </button>
-                </div>
-            </div>
-            <div className="buttons-container">
-                <p>Infinite</p>
-                <div className="inner" data-infinite={lenisConfig?.isInfinite}>
-                    <div className="toggle" />
-                    <button data-active={lenisConfig?.isInfinite} aria-label="Inifinte" type='button' className={cn("button", !lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', true)}>
-                        Yes
-                    </button>
-                    <button data-active={!lenisConfig?.isInfinite} aria-label="Not Infinite" type='button' className={cn("button", lenisConfig?.isInfinite && 'disabled')} onClick={() => updateLenisConfig('isInfinite', false)} >
-                        No
-                    </button>
-                </div>
-            </div>
-            <div className="buttons-container">
-                <p>Intensity</p>
-                <div className="inner-range">
-                    <input
-                        className="range-text"
-                        type="text"
-                        ref={inputTextRef}
-                        value={lenisConfig.intensity.toString()}
-                        onChange={(e) => {
-                            let float = Number.parseFloat(e.target.value)
-                            if (Number.isNaN(float)) return
-                            float = Math.min(Math.max(MIN, float), MAX)
-                            updateLenisConfig('intensity', float)
-                        }}
-                        onBlur={(e) => {
-                            let float = Number.parseFloat(e.target.value)
-                            if (Number.isNaN(float)) return
-
-                            float = Math.min(Math.max(MIN, float), MAX)
-                            updateLenisConfig('intensity', float)
-                        }}
-                    />
-                    <div className="input-range">
-                        <input
-                            type="range"
-                            min={MIN}
-                            max={MAX}
-                            step="1"
-                            onChange={(e) => {
-                                const newValue = Number.parseFloat(e.target.value)
-                                updateLenisConfig('intensity', newValue)
+        <Switch>
+            <Route path="/">
+                <main className="main">
+                    <p>Welcome to Lenis Plugin</p>
+                    <div className='buttons-grid'>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/canvas/smooth-scroll")}
+                            className="button-icon"
+                        >
+                            <FormsIcon />
+                            Smooth Scroll
+                        </button>
+                        <button
+                            type="button"
+                            className={cn("button-icon", hasInfinite && "lenis-applied")}
+                            onClick={async () => {
+                                await infiniteScroll()
+                                setHasInfinite(prev => !prev)
                             }}
-                            value={lenisConfig.intensity}
-                        />
+                        >
+                            <ChartIcon />
+                            Seamless Infinite
+                        </button>
+                        <button
+                            type="button"
+                            className="button-icon"
+                        >
+                            <DatabaseIcon />
+                            Horizontal Section
+                        </button>
                     </div>
-                </div>
-            </div>
-        </main>
+
+                </main>
+            </Route>
+            <Route path="/canvas/smooth-scroll">
+                <SmoothScrollPage />
+            </Route>
+        </Switch>
     )
 }
+
+
