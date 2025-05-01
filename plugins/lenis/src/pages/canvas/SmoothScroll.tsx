@@ -2,26 +2,24 @@ import { useState, useRef, useEffect } from 'react'
 import { framer, isComponentInstanceNode } from "framer-plugin"
 import cn from 'clsx'
 import { useLocation } from "wouter"
+import { getDesktopFrame } from '../../App'
 
 
 const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
 const LENIS_COMPONENT_NAME = "Lenis"
 
-
-
+// Apply lenis component to Desktop primary
 const applyLenis = async () => {
-    const desktopFrame = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
+    const desktopFrame = await getDesktopFrame()
+
     if (!desktopFrame) {
         return
     }
 
     await framer.setAttributes(desktopFrame?.id, {
-        name: "Desktop",
         position: "fixed",
         height: '100%',
     })
-
-    console.log('desktopFrame', desktopFrame)
 
     const component = await framer.addComponentInstance({
         url: LENIS_COMPONENT_URL,
@@ -38,8 +36,9 @@ const applyLenis = async () => {
     })
 }
 
+// Check for the existence of Lenis component
 export const getLenisComponent = async () => {
-    const desktopFrame = (await framer.getNodesWithType("FrameNode")).find(node => node.name === "Desktop")
+    const desktopFrame = await getDesktopFrame()
     if (!desktopFrame) return null
 
     const children = await framer.getChildren(desktopFrame.id)
