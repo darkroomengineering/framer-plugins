@@ -3,6 +3,8 @@ import { framer, isComponentInstanceNode } from "framer-plugin"
 import cn from 'clsx'
 import { useLocation } from "wouter"
 import { getDesktopFrame } from '../../App'
+import * as Slider from "@radix-ui/react-slider"
+
 
 
 const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
@@ -95,7 +97,7 @@ export default function SmoothScrollPage() {
             >
                 {hasLenis ? "Lenis Applied" : "Apply Lenis"}
             </button>
-            
+
             <div className='attributes-container'>
                 <div className="buttons-container">
                     <p>Orientation</p>
@@ -121,41 +123,41 @@ export default function SmoothScrollPage() {
                         </button>
                     </div>
                 </div>
-                <div className="buttons-container">
+                <div className='buttons-container'>
                     <p>Intensity</p>
-                    <div className="inner-range">
+
+                    <div className='range-container'>
                         <input
-                            className="range-text"
-                            type="text"
-                            ref={inputTextRef}
-                            value={lenisConfig.intensity.toString()}
+                            className='range-input'
+                            type="number"
+                            min={MIN}
+                            max={MAX}
+                            step={1}
+                            value={lenisConfig?.intensity}
                             onChange={(e) => {
                                 let float = Number.parseFloat(e.target.value)
                                 if (Number.isNaN(float)) return
                                 float = Math.min(Math.max(MIN, float), MAX)
                                 updateLenisConfig('intensity', float)
                             }}
-                            onBlur={(e) => {
-                                let float = Number.parseFloat(e.target.value)
-                                if (Number.isNaN(float)) return
 
-                                float = Math.min(Math.max(MIN, float), MAX)
-                                updateLenisConfig('intensity', float)
-                            }}
+
                         />
-                        <div className="input-range">
-                            <input
-                                type="range"
-                                min={MIN}
-                                max={MAX}
-                                step="1"
-                                onChange={(e) => {
-                                    const newValue = Number.parseFloat(e.target.value)
-                                    updateLenisConfig('intensity', newValue)
-                                }}
-                                value={lenisConfig.intensity}
-                            />
-                        </div>
+                        <Slider.Root
+                            className="SliderRoot"
+                            min={MIN}
+                            max={MAX}
+                            step={1}
+                            value={[lenisConfig?.intensity]}
+                            onValueChange={value => {
+                                updateLenisConfig('intensity', Number(value[0]))
+                            }}
+                        >
+                            <Slider.Track className="SliderTrack strokeWidth">
+                                <Slider.Range className="SliderRange" />
+                            </Slider.Track>
+                            <Slider.Thumb className="SliderThumb" />
+                        </Slider.Root>
                     </div>
                 </div>
             </div>
