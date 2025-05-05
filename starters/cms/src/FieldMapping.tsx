@@ -98,7 +98,9 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
             .then(collectionFields => {
                 if (abortController.signal.aborted) return
 
-                setFields(mergeFieldsWithExistingFields(dataSource.fields, collectionFields))
+                setFields(
+                    mergeFieldsWithExistingFields(dataSource.fields, collectionFields as ManagedCollectionFieldInput[])
+                )
 
                 const existingFieldIds = new Set(collectionFields.map(field => field.id))
 
@@ -225,7 +227,10 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                     {fields.map(field => (
                         <FieldMappingRow
                             key={`field-${field.id}`}
-                            field={{ ...field, name: field?.isMissingReference ? "Missing Collection" : field.name }}
+                            field={{
+                                ...field,
+                                name: isMissingReferenceField(field) ? "Missing Collection" : field.name,
+                            }}
                             originalFieldName={dataSource.fields.find(sourceField => sourceField.id === field.id)?.name}
                             isIgnored={ignoredFieldIds.has(field.id)}
                             onToggleDisabled={toggleFieldDisabledState}

@@ -12,17 +12,12 @@ export const PLUGIN_KEYS = {
     SLUG_FIELD_ID: "slugFieldId",
 } as const
 
-export type ExtendedEditableManagedCollectionField = EditableManagedCollectionField & {
-    dataSourceId?: string
-    isMissingReference?: boolean // reference to a collection that doesn't exist
-}
-
 export interface DataSource {
     id: string
     fields: readonly ManagedCollectionFieldInput[]
     items: FieldDataInput[]
-    idField: EditableManagedCollectionField | null // to be used as id field
-    slugField: EditableManagedCollectionField | null // to be used as slug field
+    idField: ManagedCollectionFieldInput | null // to be used as id field
+    slugField: ManagedCollectionFieldInput | null // to be used as slug field
 }
 
 export const dataSourceOptions = [
@@ -99,7 +94,6 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
         if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
             if (!field.dataSourceId) {
                 console.warn(`No data source id found for collection reference field"${field.name}".`)
-                field.isMissingReference = true
             } else {
                 const collection = collectionsWithDataSourceId.find(
                     collection => collection.dataSourceId === field.dataSourceId
@@ -107,7 +101,8 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
 
                 if (!collection) {
                     console.warn(`No collection found for data source "${field.dataSourceId}".`)
-                    field.isMissingReference = true
+                } else {
+                    field.collectionId = collection.id
                 }
             }
         }
@@ -126,8 +121,7 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
                     id: field.name,
                     name: field.name,
                     type: field.type,
-                    ...(field.dataSourceId && { dataSourceId: field.dataSourceId }),
-                    ...(field.isMissingReference && { isMissingReference: true }),
+                    ...(field.collectionId && { collectionId: field.collectionId }),
                 })
                 break
             case "image":
@@ -259,7 +253,12 @@ export async function syncExistingCollection(
             return { didSync: false }
         }
 
-        await syncCollection(collection, dataSource, existingFields, slugField)
+        await syncCollection(
+            collection,
+            dataSource,
+            existingFields as ManagedCollectionFieldInput[],
+            slugField as ManagedCollectionFieldInput
+        )
         return { didSync: true }
     } catch (error) {
         console.error(error)
