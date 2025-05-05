@@ -225,7 +225,7 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                     {fields.map(field => (
                         <FieldMappingRow
                             key={`field-${field.id}`}
-                            field={field}
+                            field={{ ...field, name: field?.isMissingReference ? "Missing Collection" : field.name }}
                             originalFieldName={dataSource.fields.find(sourceField => sourceField.id === field.id)?.name}
                             isIgnored={ignoredFieldIds.has(field.id)}
                             onToggleDisabled={toggleFieldDisabledState}

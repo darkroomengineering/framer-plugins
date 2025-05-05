@@ -12,15 +12,22 @@ export const PLUGIN_KEYS = {
     SLUG_FIELD_ID: "slugFieldId",
 } as const
 
+export type ExtendedEditableManagedCollectionField = EditableManagedCollectionField & {
+    dataSourceId?: string
+    isMissingReference?: boolean // reference to a collection that doesn't exist
+}
+
 export interface DataSource {
     id: string
     fields: readonly ManagedCollectionFieldInput[]
     items: FieldDataInput[]
+    idField: EditableManagedCollectionField | null // to be used as id field
+    slugField: EditableManagedCollectionField | null // to be used as slug field
 }
 
 export const dataSourceOptions = [
-    { id: "articles", name: "Articles" },
-    { id: "categories", name: "Categories" },
+    { id: "articles", name: "Articles", idFieldId: "Id", slugFieldId: "Title" },
+    { id: "categories", name: "Categories", idFieldId: "Id", slugFieldId: "Title" },
 ] as const
 
 /**
@@ -39,6 +46,48 @@ export const dataSourceOptions = [
  *   ]
  * }
  */
+
+type ExtendedManagedCollection = ManagedCollection & {
+    dataSourceId: string | null
+}
+
+let collections: ManagedCollection[] = []
+let collectionsWithDataSourceId: ExtendedManagedCollection[] = []
+
+if (framer.mode === "syncManagedCollection" || framer.mode === "configureManagedCollection") {
+    collections = await framer.getManagedCollections()
+    collectionsWithDataSourceId = await Promise.all(
+        collections.map(async collection => {
+            const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+            return { ...collection, dataSourceId } as ExtendedManagedCollection
+        })
+    )
+}
+
+const slugs = new Map<string, number>()
+
+function slugify(text: string) {
+    text = text.trim()
+    text = text.slice(0, 60) // limit to 60 characters
+
+    if (slugs.has(text)) {
+        const count = slugs.get(text) ?? 0
+        slugs.set(text, count + 1)
+        text = `${text} ${count + 1}`
+    } else {
+        slugs.set(text, 0)
+    }
+
+    const slug = text
+        .replace(/^\s+|\s+$/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9 -]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/-+/g, "-")
+    return slug
+}
+
 export async function getDataSource(dataSourceId: string, abortSignal?: AbortSignal): Promise<DataSource> {
     // Fetch from your data source
     const dataSourceResponse = await fetch(`/data/${dataSourceId}.json`, { signal: abortSignal })
@@ -47,6 +96,22 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
     // Map your source fields to supported field types in Framer
     const fields: ManagedCollectionFieldInput[] = []
     for (const field of dataSource.fields) {
+        if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
+            if (!field.dataSourceId) {
+                console.warn(`No data source id found for collection reference field"${field.name}".`)
+                field.isMissingReference = true
+            } else {
+                const collection = collectionsWithDataSourceId.find(
+                    collection => collection.dataSourceId === field.dataSourceId
+                )
+
+                if (!collection) {
+                    console.warn(`No collection found for data source "${field.dataSourceId}".`)
+                    field.isMissingReference = true
+                }
+            }
+        }
+
         switch (field.type) {
             case "string":
             case "number":
@@ -55,17 +120,19 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
             case "formattedText":
             case "date":
             case "link":
+            case "collectionReference":
+            case "multiCollectionReference":
                 fields.push({
                     id: field.name,
                     name: field.name,
                     type: field.type,
+                    ...(field.dataSourceId && { dataSourceId: field.dataSourceId }),
+                    ...(field.isMissingReference && { isMissingReference: true }),
                 })
                 break
             case "image":
             case "file":
             case "enum":
-            case "collectionReference":
-            case "multiCollectionReference":
                 console.warn(`Support for field type "${field.type}" is not implemented in this Plugin.`)
                 break
             default: {
@@ -76,8 +143,15 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
 
     const items = dataSource.items as FieldDataInput[]
 
+    const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
+
+    const idField = fields.find(field => field.id === dataSourceOption?.idFieldId) ?? null
+    const slugField = fields.find(field => field.id === dataSourceOption?.slugFieldId) ?? null
+
     return {
         id: dataSource.id,
+        idField,
+        slugField,
         fields,
         items,
     }
@@ -115,6 +189,12 @@ export async function syncCollection(
             continue
         }
 
+        const idValue = item[dataSource.idField?.id ?? ""]
+        if (!idValue || typeof idValue.value !== "string") {
+            console.warn(`Skipping item at index ${i} because it doesn't have a valid id`)
+            continue
+        }
+
         unsyncedItems.delete(slugValue.value)
 
         const fieldData: FieldDataInput = {}
@@ -130,8 +210,8 @@ export async function syncCollection(
         }
 
         items.push({
-            id: slugValue.value,
-            slug: slugValue.value,
+            id: idValue.value,
+            slug: slugify(slugValue.value),
             draft: false,
             fieldData,
         })
