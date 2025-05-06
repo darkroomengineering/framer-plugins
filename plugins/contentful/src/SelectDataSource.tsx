@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { type DataSource, getDataSource } from "./data"
 import { useContentfulStore } from "./store"
 import type { ContentType } from "contentful"
@@ -56,6 +56,9 @@ export function SelectDataSource({ onSelectDataSource, storedCredentials }: Sele
                     onSelect={(accessToken, contentTypes) => {
                         setCredentials(prev => ({ ...prev, accessToken }))
                         setContentTypes(contentTypes)
+                        if (contentTypes[0]?.sys?.id) {
+                            setSelectedDataSourceId(contentTypes[0].sys.id)
+                        }
                     }}
                 />
                 <SelectContentType
@@ -73,23 +76,45 @@ export function SelectDataSource({ onSelectDataSource, storedCredentials }: Sele
 
 function SelectSpace({ onSelect }: { onSelect: (spaceId: string, apiKeys: ApiKey[]) => void }) {
     const { spaces } = useContentfulStore()
+    const abortController = useAbortController()
 
     const selectSpace = useCallback(
         (spaceId: string) => {
-            getApiKeys(spaceId).then(keys => {
-                if (keys.length === 0) {
-                    throw new Error("No API keys found")
-                }
+            if (abortController.get()) {
+                abortController.get()?.abort()
+            }
 
-                if (!keys?.[0]?.accessToken) {
-                    throw new Error(`No access token found for space ${spaceId}`)
-                }
+            // Create new controller for this request
+            abortController.set()
 
-                onSelect(spaceId, keys)
-            })
+            getApiKeys(spaceId)
+                .then(keys => {
+                    if (keys.length === 0 || !keys?.[0]?.accessToken) {
+                        framer.notify("No access token found for space", {
+                            variant: "error",
+                        })
+                        throw new Error("No access token found for space")
+                    }
+
+                    onSelect(spaceId, keys)
+                })
+                .catch(error => {
+                    if (abortController.get()?.signal.aborted) return
+
+                    console.error(error)
+                    framer.notify("Error loading space API keys. Check the logs for more details.", {
+                        variant: "error",
+                    })
+                })
         },
-        [onSelect]
+        [onSelect, abortController]
     )
+
+    useEffect(() => {
+        if (spaces[0]?.sys.id) {
+            selectSpace(spaces[0]?.sys.id)
+        }
+    }, [spaces])
 
     return (
         <label htmlFor="space" className="framer-select">
@@ -100,15 +125,23 @@ function SelectSpace({ onSelect }: { onSelect: (spaceId: string, apiKeys: ApiKey
                     e.preventDefault()
                     selectSpace(e.target.value as string)
                 }}
+                defaultValue={spaces[0]?.sys.id ?? "Loading"}
             >
                 <option value="" disabled>
                     Choose Space
                 </option>
-                {spaces.map(({ sys, name }) => (
-                    <option key={sys.id} value={sys?.id ?? ""}>
-                        {name}
+
+                {spaces.length === 0 ? (
+                    <option value="Loading" disabled>
+                        Loading...
                     </option>
-                ))}
+                ) : (
+                    spaces.map(({ sys, name }) => (
+                        <option key={sys.id} value={sys.id}>
+                            {name}
+                        </option>
+                    ))
+                )}
             </select>
         </label>
     )
@@ -117,16 +150,24 @@ function SelectSpace({ onSelect }: { onSelect: (spaceId: string, apiKeys: ApiKey
 function SelectAPIKey({
     spaceId,
     apiKeys,
-    onSelect,
     disabled,
+    onSelect,
 }: {
     spaceId: string | null
     apiKeys: ApiKey[]
-    onSelect: (accessToken: string, contentTypes: ContentType[]) => void
     disabled: boolean
+    onSelect: (accessToken: string, contentTypes: ContentType[]) => void
 }) {
+    const abortController = useAbortController()
+
     const selectApiKey = useCallback(
         (accessToken: string) => {
+            if (abortController.get()) {
+                abortController.get()?.abort()
+            }
+
+            abortController.set()
+
             initContentful({
                 spaceId,
                 accessToken,
@@ -141,21 +182,30 @@ function SelectAPIKey({
                 })
             )
 
-            getContentTypes().then(contentTypes => {
-                onSelect(accessToken, contentTypes)
-            })
+            getContentTypes()
+                .then(contentTypes => {
+                    onSelect(accessToken, contentTypes)
+                })
+                .catch(error => {
+                    if (abortController.get()?.signal.aborted) return
+
+                    console.error(error)
+                    framer.notify("Error loading content types. Check the logs for more details.", {
+                        variant: "error",
+                    })
+                })
         },
-        [onSelect, spaceId]
+        [onSelect, spaceId, abortController]
     )
 
     // If there is only one API key, select it
     useEffect(() => {
         const accessToken = apiKeys[0]?.accessToken
 
-        if (apiKeys.length === 1 && accessToken && spaceId) {
+        if (accessToken && spaceId) {
             selectApiKey(accessToken)
         }
-    }, [apiKeys, spaceId, selectApiKey])
+    }, [apiKeys, spaceId])
 
     // If there is only one API key, don't show the select
     if (apiKeys.length === 1) {
@@ -172,15 +222,23 @@ function SelectAPIKey({
                     selectApiKey(e.target.value as string)
                 }}
                 disabled={disabled}
+                defaultValue={apiKeys[0]?.accessToken ?? "Loading"}
             >
-                <option value={undefined} disabled>
+                <option value="" disabled>
                     Choose API Key
                 </option>
-                {apiKeys.map(({ sys, accessToken, name }) => (
-                    <option key={sys.id} value={accessToken}>
-                        {name}
+
+                {apiKeys.length === 0 ? (
+                    <option value="Loading" disabled>
+                        Loading...
                     </option>
-                ))}
+                ) : (
+                    apiKeys.map(({ sys, accessToken, name }) => (
+                        <option key={sys.id} value={accessToken}>
+                            {name}
+                        </option>
+                    ))
+                )}
             </select>
         </label>
     )
@@ -188,26 +246,57 @@ function SelectAPIKey({
 
 function SelectContentType({
     contentTypes,
-    onChange,
     disabled,
+    onChange,
 }: {
     contentTypes: ContentType[]
-    onChange: (contentTypeId: string) => void
     disabled: boolean
+    onChange: (contentTypeId: string) => void
 }) {
     return (
         <label htmlFor="contentType" className="framer-select">
             Content Type
-            <select id="contentType" onChange={e => onChange(e.target.value as string)} disabled={disabled}>
+            <select
+                id="contentType"
+                onChange={e => onChange(e.target.value as string)}
+                disabled={disabled}
+                defaultValue={contentTypes[0]?.sys.id ?? "Loading"}
+            >
                 <option value="" disabled>
                     Choose Content Type
                 </option>
-                {contentTypes.map(({ sys, name }: ContentType) => (
-                    <option key={sys.id} value={sys.id}>
-                        {name}
+
+                {contentTypes.length === 0 ? (
+                    <option value="Loading" disabled>
+                        Loading...
                     </option>
-                ))}
+                ) : (
+                    contentTypes.map(({ sys, name }: ContentType) => (
+                        <option key={sys.id} value={sys.id}>
+                            {name}
+                        </option>
+                    ))
+                )}
             </select>
         </label>
     )
+}
+
+function useAbortController() {
+    const abortControllerRef = useRef<AbortController | null>(null)
+
+    useEffect(() => {
+        const controller = abortControllerRef.current
+        return () => {
+            controller?.abort()
+        }
+    }, [])
+
+    return {
+        get: () => abortControllerRef.current,
+        set: () => {
+            const controller = new AbortController()
+            abortControllerRef.current = controller
+        },
+    }
 }

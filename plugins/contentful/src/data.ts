@@ -41,8 +41,8 @@ if (framer.mode === "syncManagedCollection" || framer.mode === "configureManaged
     collections = await framer.getManagedCollections()
     collectionsWithDataSourceId = await Promise.all(
         collections.map(async collection => {
-            const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
-            return { ...collection, dataSourceId } as ExtendedManagedCollection
+            const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID) 
+            return { ...collection, dataSourceId: dataSourceId ?? null }
         })
     )
 }
@@ -50,18 +50,19 @@ if (framer.mode === "syncManagedCollection" || framer.mode === "configureManaged
 const slugs = new Map<string, number>()
 
 function slugify(text: string) {
-    text = text.trim()
-    text = text.slice(0, 60) // limit to 60 characters
+    let newText = text
+    newText = newText.trim()
+    newText = newText.slice(0, 60) // limit to 60 characters
 
-    if (slugs.has(text)) {
-        const count = slugs.get(text) ?? 0
-        slugs.set(text, count + 1)
-        text = `${text} ${count + 1}`
+    if (slugs.has(newText)) {
+        const count = slugs.get(newText) ?? 0
+        slugs.set(newText, count + 1)
+        newText = `${newText} ${count + 1}`
     } else {
-        slugs.set(text, 0)
+        slugs.set(newText, 0)
     }
 
-    const slug = text
+    const slug = newText
         .replace(/^\s+|\s+$/g, "")
         .toLowerCase()
         .replace(/[^a-z0-9 -]/g, "")
@@ -227,13 +228,20 @@ export async function syncExistingCollection(
 
         const dataSource = await getDataSource(contentType)
         const existingFields = await collection.getFields() as ManagedCollectionFieldInput[]
-        const slugField = {id:previousSlugFieldId} as ManagedCollectionFieldInput
+        const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
+
+        if (!slugField) {
+            framer.notify(`No field matches the slug field id "${previousSlugFieldId}". Sync will not be performed.`, {
+                variant: "error",
+            })
+            return { didSync: false }
+        }
 
         await syncCollection(collection, dataSource, existingFields, slugField)
         return { didSync: true }
     } catch (error) {
         console.error(error)
-        framer.notify(`Failed to sync collection “${previousDataSourceId}”. Check browser console for more details.`, {
+        framer.notify(`Failed to sync collection "${previousDataSourceId}". Check browser console for more details.`, {
             variant: "error",
         })
         return { didSync: false }
