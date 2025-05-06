@@ -4,7 +4,17 @@ import {
     framer,
     type ManagedCollection,
     type ManagedCollectionItemInput,
+    type FieldDataEntryInput,
 } from "framer-plugin"
+import type { ContentType } from "contentful"
+import {
+    getFramerFieldFromContentfulField,
+    mapContentfulValueToFramerValue,
+    type Credentials,
+    type ExtendedManagedCollectionField,
+} from "./lib/utils"
+import { getEntriesForContentType } from "./lib/space"
+import { initContentful, getContentTypes } from "./lib/space"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
@@ -17,29 +27,8 @@ export interface DataSource {
     items: FieldDataInput[]
     idField: ManagedCollectionFieldInput | null // to be used as id field
     slugField: ManagedCollectionFieldInput | null // to be used as slug field
+    name: string
 }
-
-export const dataSourceOptions = [
-    { id: "articles", name: "Articles", idFieldId: "Id", slugFieldId: "Title" },
-    { id: "categories", name: "Categories", idFieldId: "Id", slugFieldId: "Title" },
-] as const
-
-/**
- * Retrieve data and process it into a structured format.
- *
- * @example
- * {
- *   id: "articles",
- *   fields: [
- *     { id: "title", name: "Title", type: "string" },
- *     { id: "content", name: "Content", type: "formattedText" }
- *   ],
- *   items: [
- *     { title: "My First Article", content: "Hello world" },
- *     { title: "Another Article", content: "More content here" }
- *   ]
- * }
- */
 
 type ExtendedManagedCollection = ManagedCollection & {
     dataSourceId: string | null
@@ -82,71 +71,58 @@ function slugify(text: string) {
     return slug
 }
 
-export async function getDataSource(dataSourceId: string, abortSignal?: AbortSignal): Promise<DataSource> {
-    // Fetch from your data source
-    const dataSourceResponse = await fetch(`/data/${dataSourceId}.json`, { signal: abortSignal })
-    const dataSource = await dataSourceResponse.json()
+export async function getDataSource(dataSource: ContentType): Promise<DataSource> {
+    // First get entries from Contentful
+    const entries = await getEntriesForContentType(dataSource?.sys?.id)
 
-    // Map your source fields to supported field types in Framer
-    const fields: ManagedCollectionFieldInput[] = []
-    for (const field of dataSource.fields) {
-        if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
-            if (!field.dataSourceId) {
-                console.warn(`No data source id found for collection reference field"${field.name}".`)
+    // Force id field as there is none in Contentful fields
+    const fields: ManagedCollectionFieldInput[] = [
+        {id: 'id', name: 'id', type: 'string'} as ManagedCollectionFieldInput,
+        ...(await Promise.all(
+            dataSource.fields.map(field => getFramerFieldFromContentfulField(field))
+        ))
+    ]
+
+    const items = entries.map(entry => {
+        const item: Record<string, FieldDataEntryInput> = {};
+
+        fields.forEach(field => {
+     
+            if (field.id === 'id') {
+                item[field.id] = {
+                    value: entry.sys.id, // use entry id as id value
+                    type: 'string',
+                }
             } else {
-                const collection = collectionsWithDataSourceId.find(
-                    collection => collection.dataSourceId === field.dataSourceId
-                )
+                const value = entry.fields?.[field.id]
 
-                if (!collection) {
-                    console.warn(`No collection found for data source "${field.dataSourceId}".`)
-                } else {
-                    field.collectionId = collection.id
+                if (value !== undefined) {
+                    const mappedValue = mapContentfulValueToFramerValue(
+                        value as unknown as ContentType,
+                        field as ExtendedManagedCollectionField
+                    )
+
+                    item[field.id] = {
+                        value: mappedValue,
+                        type: field.type,
+                    }
                 }
             }
-        }
+        })
 
-        switch (field.type) {
-            case "string":
-            case "number":
-            case "boolean":
-            case "color":
-            case "formattedText":
-            case "date":
-            case "link":
-            case "collectionReference":
-            case "multiCollectionReference":
-                fields.push({
-                    id: field.name,
-                    name: field.name,
-                    type: field.type,
-                    ...(field.collectionId && { collectionId: field.collectionId }),
-                })
-                break
-            case "image":
-            case "file":
-            case "enum":
-                console.warn(`Support for field type "${field.type}" is not implemented in this Plugin.`)
-                break
-            default: {
-                console.warn(`Unknown field type "${field.type}".`)
-            }
-        }
-    }
+        return item
+    })
 
-    const items = dataSource.items as FieldDataInput[]
-
-    const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
-
-    const idField = fields.find(field => field.id === dataSourceOption?.idFieldId) ?? null
-    const slugField = fields.find(field => field.id === dataSourceOption?.slugFieldId) ?? null
+    const idField = fields.find(field => field.id === "id") ?? null
+    const slugField = fields.find(field => field.type === "string") ?? null
 
     return {
-        id: dataSource.id,
+        id: dataSource.sys.id,
         idField,
         slugField,
         fields,
         items,
+        name: dataSource.name,
     }
 }
 
@@ -207,7 +183,6 @@ export async function syncCollection(
             fieldData[field.id] = value
         }
 
-
         items.push({
             id: idValue.value,
             slug: slugify(slugValue.value),
@@ -215,7 +190,6 @@ export async function syncCollection(
             fieldData,
         })
     }
-
 
     await collection.setFields(sanitizedFields)
     await collection.removeItems(Array.from(unsyncedItems))
@@ -228,7 +202,8 @@ export async function syncCollection(
 export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
-    previousSlugFieldId: string | null
+    previousSlugFieldId: string | null,
+    storedCredentials: Credentials
 ): Promise<{ didSync: boolean }> {
     if (!previousDataSourceId) {
         return { didSync: false }
@@ -239,23 +214,22 @@ export async function syncExistingCollection(
     }
 
     try {
-        const dataSource = await getDataSource(previousDataSourceId)
-        const existingFields = await collection.getFields()
+        const { spaceId, accessToken } = storedCredentials
 
-        const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
-        if (!slugField) {
-            framer.notify(`No field matches the slug field id “${previousSlugFieldId}”. Sync will not be performed.`, {
-                variant: "error",
-            })
-            return { didSync: false }
-        }
+        initContentful({
+            spaceId,
+            accessToken,
+        })
 
-        await syncCollection(
-            collection,
-            dataSource,
-            existingFields as ManagedCollectionFieldInput[],
-            slugField as ManagedCollectionFieldInput
-        )
+        const contentTypes = await getContentTypes()
+        const contentType = contentTypes.find(contentType => contentType.sys.id === previousDataSourceId)
+        if (!contentType) throw new Error("Content type not found")
+
+        const dataSource = await getDataSource(contentType)
+        const existingFields = await collection.getFields() as ManagedCollectionFieldInput[]
+        const slugField = {id:previousSlugFieldId} as ManagedCollectionFieldInput
+
+        await syncCollection(collection, dataSource, existingFields, slugField)
         return { didSync: true }
     } catch (error) {
         console.error(error)

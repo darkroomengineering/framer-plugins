@@ -1,6 +1,6 @@
 import { type ManagedCollectionFieldInput, framer, type ManagedCollection } from "framer-plugin"
 import { useEffect, useState } from "react"
-import { type DataSource, dataSourceOptions, mergeFieldsWithExistingFields, syncCollection } from "./data"
+import { type DataSource, mergeFieldsWithExistingFields, syncCollection } from "./data"
 
 interface FieldMappingRowProps {
     field: ManagedCollectionFieldInput
@@ -99,8 +99,6 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
         return initialFieldIds
     })
 
-    const dataSourceName = dataSourceOptions.find(option => option.id === dataSource.id)?.name ?? dataSource.id
-
     useEffect(() => {
         const abortController = new AbortController()
 
@@ -173,7 +171,6 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
             setStatus("syncing-collection")
 
             const fieldsToSync = fields.filter(field => !ignoredFieldIds.has(field.id))
-
 
             await syncCollection(collection, dataSource, fieldsToSync, selectedSlugField)
             await framer.closePlugin("Synchronization successful", { variant: "success" })
@@ -252,7 +249,7 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                             <div className="framer-spinner" />
                         ) : (
                             <span>
-                                Import <span style={{ textTransform: "capitalize" }}>{dataSourceName}</span>
+                                Import <span style={{ textTransform: "capitalize" }}>{dataSource.name}</span>
                             </span>
                         )}
                     </button>
