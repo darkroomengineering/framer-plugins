@@ -4,8 +4,6 @@ import cn from 'clsx'
 import {SmoothScrollIcon, InfiniteIcon } from "./components/Icons"
 
 
-
-
 framer.showUI({
     position: "top right",
     width: 260,
@@ -18,44 +16,17 @@ const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
 const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
 const LENIS_COMPONENT_NAME = "Lenis"
 
-// Get the Desktop frame 
-export const getDesktopFrame = async () => {
-    const frames = await framer.getNodesWithType("FrameNode")
-    return frames.find(node => node?.name?.includes("Desktop"))
-}
-
-
-const infiniteScroll = async () => {
-    const desktop = await getDesktopFrame()
-    if (!desktop) return
-
+const addComponent = async (url: string, name: string,) => {
     framer.addComponentInstance({
-        url: LENIS_INFINITE_COMPONENT_URL,
+        url,
         attributes: {
-            name: INFINITE_COMPONENT_NAME,
+            name,
         }
     })
 }
 
-const applyLenis = async () => {
-    const desktopFrame = await getDesktopFrame()
-
-    if (!desktopFrame) {
-        return
-    }
-
-    framer.addComponentInstance({
-        url: LENIS_COMPONENT_URL,
-        attributes: {
-            name: LENIS_COMPONENT_NAME,
-            controls: {
-                orientation: 'vertical',
-                infinite: false,
-                intensity: 12
-            }
-        }
-    })
-}
+const infiniteScroll = () => addComponent(LENIS_INFINITE_COMPONENT_URL, INFINITE_COMPONENT_NAME)
+const applyLenis = () => addComponent(LENIS_COMPONENT_URL, LENIS_COMPONENT_NAME)
 
 export function App() {
 
