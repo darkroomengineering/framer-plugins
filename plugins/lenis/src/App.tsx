@@ -1,23 +1,22 @@
-import { framer, isComponentInstanceNode } from "framer-plugin"
+import { framer } from "framer-plugin"
 import "./App.css"
-import { useEffect, useState } from "react"
 import cn from 'clsx'
-import { FormsIcon, ChartIcon, DatabaseIcon } from "./components/Icons"
-import { Route, Switch, useLocation } from "wouter"
-import SmoothScrollPage from "./pages/canvas/SmoothScroll"
+import {SmoothScrollIcon, InfiniteIcon } from "./components/Icons"
+
 
 
 
 framer.showUI({
     position: "top right",
-    width: 250,
-    height: 350,
+    width: 260,
+    height: 411,
     resizable: false,
 })
 
 const LENIS_INFINITE_COMPONENT_URL = "https://framer.com/m/SeamlessInfinite-Ewnw.js@STKcFeAGI8EdZuHRxhZd"
 const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
-// const HIDE_VERTICAL_SCROLLBAR_COMPONENT = "https://framer.com/m/HideVerticalScrollbar-Ivt5.js@7UhKJGWr3Ep1GM9aPplr"
+const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
+const LENIS_COMPONENT_NAME = "Lenis"
 
 // Get the Desktop frame 
 export const getDesktopFrame = async () => {
@@ -25,87 +24,81 @@ export const getDesktopFrame = async () => {
     return frames.find(node => node?.name?.includes("Desktop"))
 }
 
-// Check for the existence of infinite component
-export const getInfiniteComponent = async () => {
-    const desktopFrame = await getDesktopFrame()
-    if (!desktopFrame) return null
-
-    const children = await framer.getChildren(desktopFrame.id)
-    return children.find(child => isComponentInstanceNode(child) && child.name === "SeamlessInfinite")
-}
-
 
 const infiniteScroll = async () => {
     const desktop = await getDesktopFrame()
     if (!desktop) return
 
-    const component = await framer.addComponentInstance({
+    framer.addComponentInstance({
         url: LENIS_INFINITE_COMPONENT_URL,
+        attributes: {
+            name: INFINITE_COMPONENT_NAME,
+        }
     })
-
-
-    await framer.setParent(component?.id, desktop?.id)
-    await framer.setAttributes(component?.id, {
-        name: INFINITE_COMPONENT_NAME,
-    })    
-    
 }
 
+const applyLenis = async () => {
+    const desktopFrame = await getDesktopFrame()
+
+    if (!desktopFrame) {
+        return
+    }
+
+    framer.addComponentInstance({
+        url: LENIS_COMPONENT_URL,
+        attributes: {
+            name: LENIS_COMPONENT_NAME,
+            controls: {
+                orientation: 'vertical',
+                infinite: false,
+                intensity: 12
+            }
+        }
+    })
+}
 
 export function App() {
-    const [hasInfinite, setHasInfinite] = useState(false)
-    const [, navigate] = useLocation()
-
-    useEffect(() => {
-        const checkAndUpdate = async () => {
-            const infinite = await getInfiniteComponent()
-            setHasInfinite(!!infinite)
-        }
-
-        checkAndUpdate()
-        return framer.subscribeToSelection(checkAndUpdate)
-    }, [])
 
     return (
-        <Switch>
-            <Route path="/">
-                <main className="main">
-                    <p>Welcome to Lenis Plugin</p>
-                    <div className='buttons-grid'>
-                        <button
-                            type="button"
-                            onClick={() => navigate("/canvas/smooth-scroll")}
-                            className="button-icon"
-                        >
-                            <FormsIcon />
-                            Smooth Scroll
-                        </button>
-                        <button
-                            type="button"
-                            className={cn("button-icon", hasInfinite && "lenis-applied")}
-                            onClick={async () => {
-                                await infiniteScroll()
-                                setHasInfinite(prev => !prev)
-                            }}
-                        >
-                            <ChartIcon />
-                            Seamless Infinite
-                        </button>
-                        <button
-                            type="button"
-                            className="button-icon"
-                        >
-                            <DatabaseIcon />
-                            Horizontal Section
-                        </button>
-                    </div>
 
-                </main>
-            </Route>
-            <Route path="/canvas/smooth-scroll">
-                <SmoothScrollPage />
-            </Route>
-        </Switch>
+        <main className="main">
+            <div className='intro'>
+                <img src="/lenis-icon.png" alt="Lenis" className="lenis-icon"/>
+                <div className="intro-text">
+                    <p className="title">Welcome to Lenis</p>
+                    <p className="description">Smooth scroll as it should be.<br />By <a href="https://darkroom.engineering/" target="_blank" rel="noreferrer">darkroom.engineering.</a></p>
+                </div>
+            </div>
+            <div className='buttons-grid'>
+                <button
+                    type="button"
+                    className="button-icon"
+                    onClick={applyLenis}
+
+                >
+                    <SmoothScrollIcon />
+                    Smooth<br />Scroll
+                </button>
+                <button
+                    type="button"
+                    className={cn("button-icon")}
+                    onClick={async () => {
+                        await infiniteScroll()
+                    }}
+                >
+                    <InfiniteIcon />
+                    Seamless Infinite
+                </button>
+            </div>
+            <div className="external-buttons">
+                <a className="external-button" target="_blank" rel="noreferrer" type="button" href="https://framer.com/projects/lenis-framer-website-copy--jAj50H3HTRXhbCbDtwIr-lvH3p?node=augiA20Iln">
+                    Remix
+                </a>
+                <a className="external-button" target="_blank" rel="noreferrer" type="button" href="https://polar.sh/darkroomengineering/products/1e2f6f70-ff85-4cad-81f0-f979715309f9">
+                    Donate
+                </a>
+            </div>
+        </main>
     )
 }
 
