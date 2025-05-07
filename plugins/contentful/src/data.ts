@@ -1,17 +1,17 @@
 import {
     type ManagedCollectionFieldInput,
     type FieldDataInput,
-    framer,
     type ManagedCollection,
     type ManagedCollectionItemInput,
     type FieldDataEntryInput,
+    framer,
 } from "framer-plugin"
 import type { ContentType } from "contentful"
 import {
-    getFramerFieldFromContentfulField,
-    mapContentfulValueToFramerValue,
     type Credentials,
     type ExtendedManagedCollectionField,
+    getFramerFieldFromContentfulField,
+    mapContentfulValueToFramerValue,
 } from "./lib/utils"
 import { getEntriesForContentType } from "./lib/space"
 import { initContentful, getContentTypes } from "./lib/space"
@@ -30,25 +30,7 @@ export interface DataSource {
     name: string
 }
 
-type ExtendedManagedCollection = ManagedCollection & {
-    dataSourceId: string | null
-}
-
-let collections: ManagedCollection[] = []
-let collectionsWithDataSourceId: ExtendedManagedCollection[] = []
-
-if (framer.mode === "syncManagedCollection" || framer.mode === "configureManagedCollection") {
-    collections = await framer.getManagedCollections()
-    collectionsWithDataSourceId = await Promise.all(
-        collections.map(async collection => {
-            const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID) 
-            return { ...collection, dataSourceId: dataSourceId ?? null }
-        })
-    )
-}
-
 const slugs = new Map<string, number>()
-
 function slugify(text: string) {
     let newText = text
     newText = newText.trim()
@@ -73,6 +55,7 @@ function slugify(text: string) {
 }
 
 export async function getDataSource(dataSource: ContentType): Promise<DataSource> {
+
     // First get entries from Contentful
     const entries = await getEntriesForContentType(dataSource?.sys?.id)
 
@@ -88,7 +71,6 @@ export async function getDataSource(dataSource: ContentType): Promise<DataSource
         const item: Record<string, FieldDataEntryInput> = {};
 
         fields.forEach(field => {
-     
             if (field.id === 'id') {
                 item[field.id] = {
                     value: entry.sys.id, // use entry id as id value
@@ -116,6 +98,8 @@ export async function getDataSource(dataSource: ContentType): Promise<DataSource
 
     const idField = fields.find(field => field.id === "id") ?? null
     const slugField = fields.find(field => field.type === "string") ?? null
+
+    console.log(fields)
 
     return {
         id: dataSource.sys.id,
@@ -187,8 +171,8 @@ export async function syncCollection(
         items.push({
             id: idValue.value,
             slug: slugify(slugValue.value),
-            draft: false,
             fieldData,
+            draft: false,
         })
     }
 
@@ -196,6 +180,7 @@ export async function syncCollection(
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
 
+    console.log(collection)
     await collection.setPluginData(PLUGIN_KEYS.DATA_SOURCE_ID, dataSource.id)
     await collection.setPluginData(PLUGIN_KEYS.SLUG_FIELD_ID, slugField.id)
 }

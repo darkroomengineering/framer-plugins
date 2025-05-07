@@ -1,6 +1,6 @@
 {
     "id": "72745a",
-    "name": "CMS Starter",
+    "name": "Contentful",
     "modes": ["configureManagedCollection", "syncManagedCollection"],
     "icon": "/icon.svg"
 }

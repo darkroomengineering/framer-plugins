@@ -13,22 +13,39 @@ main {
     -webkit-user-select: none;
 }
 
-form, ol {
+form {
     display: flex;
     flex-direction: column;
     width: 100%;
     gap: 10px;
 }
 
-ol {
-    /* padding-block: 7px; */
-    margin-left: 30px;
+.form, .list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+
+    button {
+        margin-top: 5px;
+    }
+}
+
+.list {
+    margin-left: 15px;
     list-style-type: decimal;
 
     span {
         color: var(--framer-color-text-tertiary);
         padding-left: 10px;
     }
+}
+
+.auth {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-inline: 15px;
 }
 
 .sticky-divider {
@@ -198,11 +215,23 @@ ol {
     pointer-events: none;
 }
 
-.framer-select {
+.two-column {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
+    align-items: center;
+    
 
-    label, select {
+    .label, .select {
       grid-column: span 1 / span 1;
     }
+
+    .label {
+        padding-left: 15px;
+    }
+
+    .select {
+        justify-self: flex-end;
+    }
+
+
 }

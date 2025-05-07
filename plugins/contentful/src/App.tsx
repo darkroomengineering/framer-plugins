@@ -19,19 +19,6 @@ interface AppProps {
 export function App({ collection, storedCredentials, previousDataSourceId, previousSlugFieldId }: AppProps) {
     const [dataSource, setDataSource] = useState<DataSource | null>(null)
 
-    // UI load
-    useLayoutEffect(() => {
-        const hasDataSourceSelected = Boolean(dataSource)
-
-        framer.showUI({
-            width: hasDataSourceSelected ? 340 : 320,
-            height: hasDataSourceSelected ? 425 : 385,
-            minWidth: hasDataSourceSelected ? 340 : 320,
-            minHeight: hasDataSourceSelected ? 425 : 345,
-            resizable: hasDataSourceSelected,
-        })
-    }, [dataSource])
-
     // For manage button
     useEffect(() => {
         if (!previousDataSourceId) {

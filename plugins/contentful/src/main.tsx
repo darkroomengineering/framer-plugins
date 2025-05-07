@@ -31,6 +31,11 @@ if (didSync) {
     const root = document.getElementById("root")
     if (!root) throw new Error("Root element not found")
 
+    framer.showUI({
+        width: 320,
+        height: 340,
+    })
+
     createRoot(root).render(
         <StrictMode>
             <Auth previousCredentials={storedCredentials}>

@@ -1,13 +1,14 @@
 import { type ManagedCollectionFieldInput } from "framer-plugin"
-import { framer } from "framer-plugin"
 import { type ContentTypeField, type ContentType } from "contentful"
+import { type FieldDataEntryInput } from "framer-plugin"
+import { framer } from "framer-plugin"
 import { documentToHtmlString } from "@contentful/rich-text-html-renderer"
 import { BLOCKS } from "@contentful/rich-text-types"
-import { type FieldDataEntryInput } from "framer-plugin"
+import { PLUGIN_KEYS } from "../data"
 
 export type ExtendedManagedCollectionField = ManagedCollectionFieldInput & {
     isDisabled?: boolean
-    field?: ContentTypeField
+    field?: ManagedCollectionFieldInput
     isMissingReference?: boolean
     collectionId?: string
     defaultType?: string
@@ -19,21 +20,12 @@ export type Credentials = {
     authGranted: boolean
 }
 
-function getCollectionId(field: ContentTypeField, collections: Record<string, { id: string }> | null) {
-    const validationContentType = field?.validations?.[0]?.linkContentType?.[0]
-    return validationContentType && collections ? collections[validationContentType]?.id : null
-}
-
 export async function getFramerFieldFromContentfulField(field: ContentTypeField): Promise<ManagedCollectionFieldInput> {
     const baseField = {
         id: field.id ?? "",
         name: field.name ?? "",
         userEditable: false,
     }
-
-    // TODO: fix collections references
-    let collections = await framer.getPluginData("contentful:collections")
-    collections = collections ? JSON.parse(collections) : {}
 
     switch (field.type) {
         case "Integer":
@@ -49,27 +41,32 @@ export async function getFramerFieldFromContentfulField(field: ContentTypeField)
         case "RichText":
             return { ...baseField, type: "formattedText" }
         case "Link":
+            // Linked media
             if (field.linkType === "Asset") {
                 return { ...baseField, type: "image" }
             }
+
+            // Linked content types
             if (field.linkType === "Entry") {
-                const collectionId = getCollectionId(field, collections)
+                const fieldCollection = await linkedCollectionId(field, "collectionReference")
 
-                if (!collectionId) {
-                    return { ...baseField, type: "string" }
-                }
-
-                return { ...baseField, type: "collectionReference", collectionId }
+                return fieldCollection as ManagedCollectionFieldInput
             }
+
             return { ...baseField, type: "string" }
         case "Array":
-            if (field.items?.type === "Link" && field.items.linkType === "Entry") {
-                const collectionId = getCollectionId(field.items, collections)
-
-                if (collectionId) {
-                    return { ...baseField, type: "multiCollectionReference", collectionId }
-                }
+            // Linked media
+            if (field.items?.type === "Link" && field.items.linkType === "Asset") {
+                return { ...baseField, type: "image" }
             }
+
+            // Linked content types
+            if (field.items?.type === "Link" && field.items.linkType === "Entry") {
+                const fieldCollection = await linkedCollectionId(field, "multiCollectionReference")
+
+                return fieldCollection as ManagedCollectionFieldInput
+            }
+
             return { ...baseField, type: "string" }
         default:
             return { ...baseField, type: "string" }
@@ -96,7 +93,7 @@ export function mapContentfulValueToFramerValue(value: ContentType, framerField:
         }
     }
 
-    const flatTypesHandlers: Record<string, () => FieldDataEntryInput["value"]> = {
+    const typesHandlers: Record<string, () => FieldDataEntryInput["value"]> = {
         boolean: () => Boolean(value),
         number: () => {
             const num = Number(value)
@@ -106,76 +103,21 @@ export function mapContentfulValueToFramerValue(value: ContentType, framerField:
         date: () => String(value),
         color: () => String(value),
         image: () => parseImageUrl(value?.fields?.file?.url),
-    }
-
-    const flatTypes = flatTypesHandlers[framerField.type]
-    const fieldType = framerField?.field?.type
-    const linkType = framerField?.field?.linkType
-
-    // Handle flat types
-    if (flatTypes) return flatTypes()
-
-    // Handle array types
-    if (fieldType === "Array" && Array.isArray(value)) {
-        const returnValue = value
-            .map(item => {
-                if (item && typeof item === "object" && "sys" in item && "fields" in item) {
-                    if (item.sys.type === "Asset" && "file" in item.fields) {
-                        return parseImageUrl(item.fields?.file?.url)
-                    }
-                    if (item.sys.type === "Entry") {
-                        return item.sys.id
-                    }
-                }
-                return typeof item === "string" ? item : ""
-            })
-            .filter(Boolean)
-
-        if (framerField?.type === "image") {
-            // Framer doesn't support multiple images in a collection field, so we need to return the first image
-            return returnValue[0]
-        }
-
-        if (framerField?.type === "string") {
-            return returnValue.join(",")
-        }
-
-        return returnValue
-    }
-
-    // Handle linked types, links or assets
-    if (fieldType === "Link" && typeof value === "object" && value !== null) {
-        const item = value as {
-            sys?: { type?: string; id?: string }
-            fields?: { file?: { url?: string } }
-        }
-
-        if (item.sys?.type === "Asset" && linkType === "Asset") {
-            return parseImageUrl(item.fields?.file?.url)
-        }
-
-        if (item.sys?.type === "Entry" && linkType === "Entry" && item.sys.id) {
-            return item.sys.id
-        }
-
-        return ""
-    }
-
-    // Handle rich text
-    if (fieldType === "RichText") {
-        // @ts-expect-error as to render it as string
-        return documentToHtmlString(value, {
-            renderNode: {
-                [BLOCKS.EMBEDDED_ASSET]: node => {
-                    if (node?.nodeType === "embedded-asset-block") {
-                        return `<img src="${parseImageUrl(node.data.target.fields.file.url)}" />`
-                    }
+        collectionReference: () => value.sys.id,
+        multiCollectionReference: () => value.map(({ sys }) => sys.id),
+        formattedText: () =>
+            documentToHtmlString(value, {
+                renderNode: {
+                    [BLOCKS.EMBEDDED_ASSET]: node => {
+                        if (node?.nodeType === "embedded-asset-block") {
+                            return `<img src="${parseImageUrl(node.data.target.fields.file.url)}" />`
+                        }
+                    },
                 },
-            },
-        })
+            }),
     }
 
-    return String(value)
+    return typesHandlers[framerField.type]?.() ?? String(value)
 }
 
 const credentials = { accessToken: null, spaceId: null, authGranted: false }
@@ -193,4 +135,38 @@ function parseImageUrl(url: string | undefined) {
     if (!url) return ""
     if (url.startsWith("//")) return "https:" + url
     return url
+}
+
+async function linkedCollectionId(field: ContentTypeField, type: string) {
+    const defaultField = {
+        id: field.id ?? "",
+        name: field.name ?? "",
+        userEditable: false,
+        collectionId: null,
+        type,
+    }
+
+    const contentField = type === "multiCollectionReference" ? field.items : field
+
+    const linkedContentType = contentField?.validations?.[0]?.linkContentType?.[0]
+
+    if (!linkedContentType) return defaultField
+
+    // Map linked content type id to a collection through data source id and retrieve the collection id
+    const collections = await framer.getManagedCollections()
+    const collectionsIds = await Promise.all(
+        collections.map(async collection => {
+            const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+            return { dataSourceId, collectionId: collection.id }
+        })
+    )
+
+    const linkedDataSourceId = collectionsIds.find(collection => collection.dataSourceId === linkedContentType)
+
+    if (!linkedDataSourceId) return defaultField
+
+    return {
+        ...defaultField,
+        collectionId: linkedDataSourceId.collectionId,
+    }
 }

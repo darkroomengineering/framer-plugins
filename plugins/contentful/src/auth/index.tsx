@@ -72,9 +72,9 @@ export function AuthScreen({ onSubmit }: { onSubmit: (tokens: { accessToken: str
     }
 
     return (
-        <div className="auth framer-hide-scrollbar setup">
+        <div className="auth framer-hide-scrollbar">
             <img src="/contentful.webp" alt="Contentful" className="img" />
-            <ol>
+            <ol className="list">
                 <li>
                     <span>Log in to your Contentful account</span>
                 </li>

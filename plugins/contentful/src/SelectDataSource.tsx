@@ -34,15 +34,20 @@ export function SelectDataSource({ onSelectDataSource, storedCredentials }: Sele
             ).then(e => {
                 setIsLoading(false)
                 onSelectDataSource(e)
+                framer.showUI({
+                    width: 340,
+                    height: 425,
+                    resizable: true,
+                })
             })
         },
         [contentTypes, selectedDataSourceId, onSelectDataSource]
     )
 
     return (
-        <main className="framer-hide-scrollbar setup">
+        <main className="framer-hide-scrollbar">
             <img src="/contentful.webp" alt="Contentful" className="img" />
-            <form onSubmit={onSubmit}>
+            <form onSubmit={onSubmit} className="form">
                 <SelectSpace
                     onSelect={(spaceId, apiKeys) => {
                         setCredentials(prev => ({ ...prev, spaceId }))
@@ -117,10 +122,11 @@ function SelectSpace({ onSelect }: { onSelect: (spaceId: string, apiKeys: ApiKey
     }, [spaces])
 
     return (
-        <label htmlFor="space" className="framer-select">
-            Space
+        <label htmlFor="space" className="two-column">
+            <span className="label">Space</span>
             <select
                 id="space"
+                className="select"
                 onChange={e => {
                     e.preventDefault()
                     selectSpace(e.target.value as string)
@@ -198,25 +204,32 @@ function SelectAPIKey({
         [onSelect, spaceId, abortController]
     )
 
-    // If there is only one API key, select it
+    // Set the default API key
     useEffect(() => {
         const accessToken = apiKeys[0]?.accessToken
-
         if (accessToken && spaceId) {
             selectApiKey(accessToken)
         }
     }, [apiKeys, spaceId])
 
-    // If there is only one API key, don't show the select
-    if (apiKeys.length === 1) {
+    // Increase the height if there are multiple API keys
+    useEffect(() => {
+        framer.showUI({
+            height: apiKeys.length > 1 ? 380 : 340,
+        })
+    }, [apiKeys])
+
+    // If there is none/one API key, don't show the select
+    if (apiKeys.length <= 1) {
         return null
     }
 
     return (
-        <label htmlFor="apiKey" className="framer-select">
-            API Key
+        <label htmlFor="apiKey" className="two-column">
+            <span className="label">API Key</span>
             <select
                 id="apiKey"
+                className="select"
                 onChange={e => {
                     e.preventDefault()
                     selectApiKey(e.target.value as string)
@@ -254,10 +267,11 @@ function SelectContentType({
     onChange: (contentTypeId: string) => void
 }) {
     return (
-        <label htmlFor="contentType" className="framer-select">
-            Content Type
+        <label htmlFor="contentType" className="two-column">
+            <span className="label">Content Type</span>
             <select
                 id="contentType"
+                className="select"
                 onChange={e => onChange(e.target.value as string)}
                 disabled={disabled}
                 defaultValue={contentTypes[0]?.sys.id ?? "Loading"}
