@@ -2,7 +2,7 @@
     padding-inline: 15px;
 }
 
-.intro{
+.intro {
     text-align: center;
     padding-top: 45px;
     padding-bottom: 15px;
@@ -10,25 +10,25 @@
     flex-direction: column;
     align-items: center;
     row-gap: 15px;
-    border-top:1px solid #252525;
-    margin-bottom:15px; 
+    border-top: 1px solid #252525;
+    margin-bottom: 15px;
 }
 
-.intro-text{
+.intro-text {
     display: flex;
     flex-direction: column;
     row-gap: 10px;
 }
 
-.title{
-    color:#FFFFFF;
+.title {
+    color: #ffffff;
 }
 
-.description{
+.description {
     color: #888888;
 }
 
-.buttons-grid{
+.buttons-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     column-gap: 10px;
@@ -36,19 +36,19 @@
     height: 100%;
     align-content: center;
     padding-bottom: 15px;
-    border-bottom:1px solid #252525;
+    border-bottom: 1px solid #252525;
     margin-bottom: 15px;
 }
 
-.external-buttons{
+.external-buttons {
     display: flex;
     flex-direction: column;
     row-gap: 10px;
 }
 
-.external-button{
-    height:30px;
-    background-color: #FF98A2;
+.external-button {
+    height: 30px;
+    background-color: #ff98a2;
     color: #000000;
     border-radius: 8px;
     text-decoration: none;
@@ -59,18 +59,17 @@
     font-weight: 600;
 }
 
-.external-button:hover{
-    background-color: #FF98A2 !important;
-    color:black;
-    opacity: 0.8;
+.external-button:hover {
+    background-color: rgba(255, 179, 186, 1) !important;
+    color: black;
 }
 
-.lenis-icon{
+.lenis-icon {
     width: 30px;
     height: 30px;
     border-radius: 8px;
 }
-.button-icon{
+.button-icon {
     height: 110px;
     border-radius: 8px;
     display: flex;
@@ -79,32 +78,21 @@
     color: #888888;
 }
 
-a{
+a {
     text-decoration: underline;
-    color:#888888;
+    color: #888888;
 }
 
 body[data-framer-theme="light"] {
-
-    .title{
+    .title {
         color: #000000;
     }
 
-    .intro{
-        border-top: 1px solid #EEEEEE;
+    .intro {
+        border-top: 1px solid #eeeeee;
     }
 
-    .buttons-grid{
-        border-bottom: 1px solid #EEEEEE;
+    .buttons-grid {
+        border-bottom: 1px solid #eeeeee;
     }
 }
-
-
-
-
-
-
-
-
-
-
