@@ -1,8 +1,7 @@
 import { framer } from "framer-plugin"
 import "./App.css"
-import cn from 'clsx'
-import {SmoothScrollIcon, InfiniteIcon } from "./components/Icons"
-
+import cn from "clsx"
+import { SmoothScrollIcon, InfiniteIcon } from "./components/Icons"
 
 framer.showUI({
     position: "top right",
@@ -16,12 +15,12 @@ const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
 const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
 const LENIS_COMPONENT_NAME = "Lenis"
 
-const addComponent = async (url: string, name: string,) => {
+const addComponent = async (url: string, name: string) => {
     framer.addComponentInstance({
         url,
         attributes: {
             name,
-        }
+        },
     })
 }
 
@@ -29,26 +28,29 @@ const infiniteScroll = () => addComponent(LENIS_INFINITE_COMPONENT_URL, INFINITE
 const applyLenis = () => addComponent(LENIS_COMPONENT_URL, LENIS_COMPONENT_NAME)
 
 export function App() {
-
     return (
-
         <main className="main">
-            <div className='intro'>
-                <img src="/lenis-icon.png" alt="Lenis" className="lenis-icon"/>
+            <div className="intro">
+                <img src="/lenis-icon.png" alt="Lenis" className="lenis-icon" />
                 <div className="intro-text">
                     <p className="title">Welcome to Lenis</p>
-                    <p className="description">Smooth scroll as it should be.<br />By <a href="https://darkroom.engineering/" target="_blank" rel="noreferrer">darkroom.engineering.</a></p>
+                    <p className="description">
+                        Smooth scroll as it should be,
+                        <br />
+                        by{" "}
+                        <a href="https://darkroom.engineering/" target="_blank" rel="noreferrer">
+                            darkroom.engineering
+                        </a>
+                        .
+                    </p>
                 </div>
             </div>
-            <div className='buttons-grid'>
-                <button
-                    type="button"
-                    className="button-icon"
-                    onClick={applyLenis}
-
-                >
+            <div className="buttons-grid">
+                <button type="button" className="button-icon" onClick={applyLenis}>
                     <SmoothScrollIcon />
-                    Smooth<br />Scroll
+                    Smooth
+                    <br />
+                    Scroll
                 </button>
                 <button
                     type="button"
@@ -62,15 +64,25 @@ export function App() {
                 </button>
             </div>
             <div className="external-buttons">
-                <a className="external-button" target="_blank" rel="noreferrer" type="button" href="https://framer.com/projects/lenis-framer-website-copy--jAj50H3HTRXhbCbDtwIr-lvH3p?node=augiA20Iln">
+                <a
+                    className="external-button"
+                    target="_blank"
+                    rel="noreferrer"
+                    type="button"
+                    href="https://framer.link/VSD8S6l"
+                >
                     Remix
                 </a>
-                <a className="external-button" target="_blank" rel="noreferrer" type="button" href="https://polar.sh/darkroomengineering/products/1e2f6f70-ff85-4cad-81f0-f979715309f9">
+                <a
+                    className="external-button"
+                    target="_blank"
+                    rel="noreferrer"
+                    type="button"
+                    href="https://polar.sh/darkroomengineering/products/1e2f6f70-ff85-4cad-81f0-f979715309f9"
+                >
                     Donate
                 </a>
             </div>
         </main>
     )
 }
-
-
