@@ -8,7 +8,7 @@ import {
 } from "framer-plugin"
 import type { ContentType } from "contentful"
 import {
-    type Credentials,
+    type Credential,
     type ExtendedManagedCollectionField,
     getFramerFieldFromContentfulField,
     mapContentfulValueToFramerValue,
@@ -55,7 +55,6 @@ function slugify(text: string) {
 }
 
 export async function getDataSource(dataSource: ContentType): Promise<DataSource> {
-
     // First get entries from Contentful
     const entries = await getEntriesForContentType(dataSource?.sys?.id)
 
@@ -98,8 +97,6 @@ export async function getDataSource(dataSource: ContentType): Promise<DataSource
 
     const idField = fields.find(field => field.id === "id") ?? null
     const slugField = fields.find(field => field.type === "string") ?? null
-
-    console.log(fields)
 
     return {
         id: dataSource.sys.id,
@@ -179,8 +176,6 @@ export async function syncCollection(
     await collection.setFields(sanitizedFields)
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
-
-    console.log(collection)
     await collection.setPluginData(PLUGIN_KEYS.DATA_SOURCE_ID, dataSource.id)
     await collection.setPluginData(PLUGIN_KEYS.SLUG_FIELD_ID, slugField.id)
 }
@@ -189,7 +184,7 @@ export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
     previousSlugFieldId: string | null,
-    storedCredentials: Credentials
+    storedCredentials: Credential
 ): Promise<{ didSync: boolean }> {
     if (!previousDataSourceId) {
         return { didSync: false }

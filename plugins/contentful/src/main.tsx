@@ -6,12 +6,14 @@ import { App } from "./App"
 import { PLUGIN_KEYS, syncExistingCollection } from "./data"
 import { Auth, AuthScreen } from "./auth"
 import { Contentful } from "./lib"
-import { parseContentfulCredentials } from "./lib/utils"
+import { contentfulCredentials } from "./lib/utils"
+
+const { getCredentials } = contentfulCredentials()
 
 const activeCollection = await framer.getActiveManagedCollection()
-const storedCredentials = await parseContentfulCredentials()
 const previousDataSourceId = await activeCollection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
 const previousSlugFieldId = await activeCollection.getPluginData(PLUGIN_KEYS.SLUG_FIELD_ID)
+const storedCredentials = await getCredentials(previousDataSourceId)
 
 const { didSync } = await syncExistingCollection(
     activeCollection,
@@ -21,7 +23,7 @@ const { didSync } = await syncExistingCollection(
 )
 
 // TODO: Remove for testing purposes
-// framer.setPluginData("contentful:space", null)
+// framer.setPluginData("contentful:credentials", null)
 
 if (didSync) {
     await framer.closePlugin("Synchronization successful", {

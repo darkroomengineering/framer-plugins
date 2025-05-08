@@ -5,11 +5,11 @@ import type { ContentType } from "contentful"
 import { getApiKeys } from "./lib/management"
 import { getContentTypes, initContentful } from "./lib/space"
 import { framer } from "framer-plugin"
-import type { Credentials } from "./lib/utils"
+import { contentfulCredentials, type Credential } from "./lib/utils"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
-    storedCredentials: Credentials
+    storedCredentials: Credential
 }
 
 interface ApiKey {
@@ -21,7 +21,7 @@ interface ApiKey {
 export function SelectDataSource({ onSelectDataSource, storedCredentials }: SelectDataSourceProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [selectedDataSourceId, setSelectedDataSourceId] = useState<string>("")
-    const [credentials, setCredentials] = useState<Credentials>(storedCredentials)
+    const [credentials, setCredentials] = useState<Credential>(storedCredentials)
     const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
     const [contentTypes, setContentTypes] = useState<ContentType[]>([])
 
@@ -38,6 +38,15 @@ export function SelectDataSource({ onSelectDataSource, storedCredentials }: Sele
                     width: 340,
                     height: 425,
                     resizable: true,
+                })
+
+                contentfulCredentials().setCredentials({
+                    credential: {
+                        ...credentials,
+                        authGranted: true,
+                        dataSources: [selectedDataSourceId],
+                    },
+                    dataSourceId: selectedDataSourceId,
                 })
             })
         },
@@ -178,15 +187,6 @@ function SelectAPIKey({
                 spaceId,
                 accessToken,
             })
-
-            framer.setPluginData(
-                "contentful:space",
-                JSON.stringify({
-                    authGranted: true,
-                    spaceId,
-                    accessToken,
-                })
-            )
 
             getContentTypes()
                 .then(contentTypes => {

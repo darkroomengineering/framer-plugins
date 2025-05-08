@@ -1,17 +1,17 @@
 import "./App.css"
 
-import { framer, type ManagedCollection } from "framer-plugin"
-import { useEffect, useLayoutEffect, useState } from "react"
+import { type ManagedCollection } from "framer-plugin"
+import { useEffect, useState } from "react"
 import { type DataSource, getDataSource } from "./data"
 import { FieldMapping } from "./FieldMapping"
 import { SelectDataSource } from "./SelectDataSource"
 import type { ContentType } from "contentful"
-import type { Credentials } from "./lib/utils"
+import type { Credential } from "./lib/utils"
 import { getContentTypes, initContentful } from "./lib/space"
 
 interface AppProps {
     collection: ManagedCollection
-    storedCredentials: Credentials
+    storedCredentials: Credential
     previousDataSourceId: string | null
     previousSlugFieldId: string | null
 }
@@ -34,9 +34,11 @@ export function App({ collection, storedCredentials, previousDataSourceId, previ
     }, [previousDataSourceId, storedCredentials])
 
     // Datasource screen selection
-    if (!dataSource && !previousDataSourceId) {
-        return <SelectDataSource onSelectDataSource={setDataSource} storedCredentials={storedCredentials} />
-    } else if (!dataSource) {
+    if (!dataSource) {
+        if (!previousDataSourceId) {
+            return <SelectDataSource onSelectDataSource={setDataSource} storedCredentials={storedCredentials} />
+        }
+
         return (
             <main className="loading">
                 <div className="framer-spinner" />

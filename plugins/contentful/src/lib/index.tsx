@@ -10,7 +10,9 @@ export function Contentful({ children, tokens }: { children: ReactNode; tokens: 
 
         initContentfulManagement(tokens.accessToken)
 
-        getSpaces().then(setSpaces)
+        getSpaces().then(spaces => {
+            setSpaces(spaces.reverse())
+        })
     }, [tokens, setSpaces])
 
     if (!spaces) return <div className="framer-spinner" />

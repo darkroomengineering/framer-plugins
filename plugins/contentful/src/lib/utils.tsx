@@ -14,12 +14,6 @@ export type ExtendedManagedCollectionField = ManagedCollectionFieldInput & {
     defaultType?: string
 }
 
-export type Credentials = {
-    accessToken: string | null
-    spaceId: string | null
-    authGranted: boolean
-}
-
 export async function getFramerFieldFromContentfulField(field: ContentTypeField): Promise<ManagedCollectionFieldInput> {
     const baseField = {
         id: field.id ?? "",
@@ -105,8 +99,8 @@ export function mapContentfulValueToFramerValue(value: ContentType, framerField:
         image: () => parseImageUrl(value?.fields?.file?.url),
         collectionReference: () => value.sys.id,
         multiCollectionReference: () => value.map(({ sys }) => sys.id),
-        formattedText: () =>
-            documentToHtmlString(value, {
+        formattedText: () => {
+            return documentToHtmlString(value, {
                 renderNode: {
                     [BLOCKS.EMBEDDED_ASSET]: node => {
                         if (node?.nodeType === "embedded-asset-block") {
@@ -114,21 +108,11 @@ export function mapContentfulValueToFramerValue(value: ContentType, framerField:
                         }
                     },
                 },
-            }),
+            })
+        },
     }
 
     return typesHandlers[framerField.type]?.() ?? String(value)
-}
-
-const credentials = { accessToken: null, spaceId: null, authGranted: false }
-export async function parseContentfulCredentials(): Promise<Credentials> {
-    const previousContentfulSpace = await framer.getPluginData("contentful:space")
-
-    try {
-        return await JSON.parse(previousContentfulSpace ?? `${credentials}`)
-    } catch {
-        return credentials
-    }
 }
 
 function parseImageUrl(url: string | undefined) {
@@ -147,7 +131,6 @@ async function linkedCollectionId(field: ContentTypeField, type: string) {
     }
 
     const contentField = type === "multiCollectionReference" ? field.items : field
-
     const linkedContentType = contentField?.validations?.[0]?.linkContentType?.[0]
 
     if (!linkedContentType) return defaultField
@@ -162,11 +145,91 @@ async function linkedCollectionId(field: ContentTypeField, type: string) {
     )
 
     const linkedDataSourceId = collectionsIds.find(collection => collection.dataSourceId === linkedContentType)
-
     if (!linkedDataSourceId) return defaultField
 
     return {
         ...defaultField,
         collectionId: linkedDataSourceId.collectionId,
     }
+}
+
+export type Credential = {
+    accessToken: string | null
+    spaceId: string | null
+    authGranted: boolean
+    dataSources: string[]
+}
+
+export type Credentials = Credential[]
+
+const dataId = "contentful:credentials"
+const defaultCredential = { accessToken: null, spaceId: null, authGranted: false, dataSources: [] }
+
+type GetCredentialsArg = string | null
+type SetCredentialsArg = { credential: Credential; dataSourceId: string }
+
+export function contentfulCredentials(): {
+    getCredentials: (arg: GetCredentialsArg) => Promise<Credential>
+    setCredentials: (arg: SetCredentialsArg) => Promise<void>
+} {
+    async function parseCredentials(credentials: string): Promise<Credentials> {
+        const parsedCredentials = (await JSON.parse(credentials)) as Credentials
+
+        return Array.isArray(parsedCredentials) ? parsedCredentials : [parsedCredentials]
+    }
+
+    function dataSourceInCredentials(previousCredentials: Credentials, dataSourceId: string) {
+        if (!previousCredentials) return defaultCredential
+
+        return previousCredentials?.find(({ dataSources }) => dataSources.includes(dataSourceId))
+    }
+
+    function spaceIdInCredentials(previousCredentials: Credentials, spaceId: string) {
+        if (!previousCredentials) return -1
+
+        return previousCredentials?.findIndex(credential => credential.spaceId === spaceId)
+    }
+
+    async function getCredentials(dataSourceId: GetCredentialsArg) {
+        // No datasource id means no credentials
+        if (!dataSourceId) return defaultCredential
+
+        const getPluginCredentials = await framer.getPluginData(dataId)
+        // No credentials then default
+        if (!getPluginCredentials) return defaultCredential
+
+        const previousCredentials = await parseCredentials(getPluginCredentials)
+        // Check if the credential already exists for this datasourceId
+        const credential = dataSourceInCredentials(previousCredentials, dataSourceId)
+
+        return credential ?? defaultCredential
+    }
+
+    async function setCredentials({ credential: newCredential, dataSourceId }: SetCredentialsArg) {
+        const getPluginCredentials = await framer.getPluginData(dataId)
+
+        // If no credentials are set, set the credential
+        if (!getPluginCredentials) {
+            framer.setPluginData(dataId, JSON.stringify([newCredential]))
+            return
+        }
+
+        // If credentials exist, parse them
+        const previousCredentials = await parseCredentials(getPluginCredentials)
+
+        // Check if spaceId credential already exists
+        const credentialIndex = spaceIdInCredentials(previousCredentials, newCredential.spaceId as string)
+
+        if (credentialIndex !== -1) {
+            // If the credential already exists, add the new dataSourceId to the existing credential
+            previousCredentials?.[credentialIndex]?.dataSources?.push(dataSourceId)
+        } else {
+            // If the credential does not exist, add the new credential
+            previousCredentials?.push(newCredential)
+        }
+
+        framer.setPluginData(dataId, JSON.stringify(previousCredentials))
+    }
+
+    return { getCredentials, setCredentials }
 }
