@@ -5,8 +5,8 @@ import {
     type ManagedCollection,
     type ManagedCollectionItemInput,
 } from "framer-plugin"
+import type StoryblokClient from "storyblok-js-client"
 
-import StoryblokClient from "storyblok-js-client"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
@@ -109,63 +109,68 @@ export interface StoryblokSpace {
     version: number
 }
 
-export async function getComponents(spaceId: number, region: StoryblokRegion) {
-    const token = localStorage.getItem("storyblok_token")
-
-    if (!token) {
-        throw new Error("No token found")
-    }
-
-    const Storyblok = new StoryblokClient({
-        oauthToken: token,
-        region: region,
-    });
-
-    const response = await Storyblok.get(`spaces/${spaceId}/components/`, {})
-
-
-    return response.data.components as StoryblokComponent[]
-     
+export interface StoryblokApiKey {
+    id: number
+    name: string
+    token: string
+    access: string
 }
 
-export async function getStory( spaceId: number, region: StoryblokRegion){
-    const token = localStorage.getItem("storyblok_token")
 
-    if (!token) {
-        throw new Error("No token found")
-    }
+// Get all spaces for a given region
+export async function getSpaces(storyblok: StoryblokClient) {
+    const response = await storyblok.get('spaces/', {})
 
-    const Storyblok = new StoryblokClient({
-        oauthToken: token,
-        region: region,
-    });
+    const spaces = response.data.spaces as StoryblokSpace[]
 
-    const response = await Storyblok.get(`spaces/${spaceId}/stories/`, {})
+    
+    return {spaces, storyblok}
+}
 
+// Get all components for a given space
+export async function getComponents(storyblok: StoryblokClient, spaceId: number) {
+    const response = await storyblok.get(`spaces/${spaceId}/components/`, {})
+
+    return response.data.components as StoryblokComponent[]
+}
+
+// Retrieve multiple stories with CDA for a specific space
+export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokApiKey[]) {
+    
+    apiKeys.map(async (apiKey) => {
+        if(apiKey.access === 'private') {
+            const response = await storyblok.get('cdn/stories/', {
+                token: apiKey.token,
+            })
+
+            return response.data.stories
+        }
+    })
+}
+
+// Get api keys for a given space
+export async function getApiKeys(spaceId: number, storyblok: StoryblokClient) {
+
+    const response = await storyblok.get(`spaces/${spaceId}/api_keys/`, {})
+
+    getStories(storyblok, response.data.api_keys)
+    
+    return response.data.api_keys as StoryblokApiKey[]
+}
+
+// Get all stories for a given space and component name
+export async function getStory(spaceId: number, componentName: string, storyblok: StoryblokClient) {
+    const response = await storyblok.get(`spaces/${spaceId}/stories/`, {
+        "contain_component": componentName
+    })
+    
+
+    console.log(response.data.stories)
     return response.data.stories as StoryblokStory[]
 }
 
-export async function getSpaces(region: StoryblokRegion) {
-    const token = localStorage.getItem("storyblok_token")
-
-    if (!token) {
-        throw new Error("No token found")
-    }
-
-    const Storyblok = new StoryblokClient({
-        oauthToken: token,
-        region: region,
-    });
-
-    const response = await Storyblok.get('spaces/', {})
-
-    return response.data.spaces as StoryblokSpace[]
-}
-
-
-export async function getDataSource(dataSourceId: string): Promise<DataSource> {
-    const region = localStorage.getItem("storyblok_region") as StoryblokRegion || STORYBLOK_REGIONS.US
-    const spaces = await getSpaces(region)
+export async function getDataSource(dataSourceId: string, storyblok: StoryblokClient): Promise<DataSource> {
+    const spaces = await getSpaces(storyblok)
 
     // Map your source fields to supported field types in Framer
     const fields: ManagedCollectionFieldInput[] = [
@@ -175,7 +180,7 @@ export async function getDataSource(dataSourceId: string): Promise<DataSource> {
 
     const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
 
-    const items = spaces.map((space: StoryblokSpace) => {
+    const items = spaces.spaces.map((space: StoryblokSpace) => {
         const id = space.id.toString()
         return {
             [dataSourceOption?.idFieldId ?? "id"]: { type: "string" as const, value: id },
@@ -271,7 +276,8 @@ export async function syncCollection(
 export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
-    previousSlugFieldId: string | null
+    previousSlugFieldId: string | null,
+    storyblok: StoryblokClient
 ): Promise<{ didSync: boolean }> {
     if (!previousDataSourceId) {
         return { didSync: false }
@@ -282,7 +288,7 @@ export async function syncExistingCollection(
     }
 
     try {
-        const dataSource = await getDataSource(previousDataSourceId)
+        const dataSource = await getDataSource(previousDataSourceId, storyblok)
         const existingFields = await collection.getFields()
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
