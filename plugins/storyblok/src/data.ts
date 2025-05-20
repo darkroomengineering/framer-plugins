@@ -5,23 +5,12 @@ import {
     type ManagedCollection,
     type ManagedCollectionItemInput,
 } from "framer-plugin"
-import type StoryblokClient from "storyblok-js-client"
-
+import type {  StoryblokStory } from "./storyblok"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
     SLUG_FIELD_ID: "slugFieldId",
 } as const
-
-export const STORYBLOK_REGIONS = {
-    US: "us",
-    EU: "eu",
-    CA: "ca",
-    AP: "ap",
-    CN: "cn",
-} as const
-
-export type StoryblokRegion = typeof STORYBLOK_REGIONS[keyof typeof STORYBLOK_REGIONS]
 
 export interface DataSource {
     id: string
@@ -90,114 +79,80 @@ function slugify(text: string) {
 //     return arr[index]
 // }
 
-export interface StoryblokStory {
-    id: number
-    name: string
-}
 
-export interface StoryblokComponent {
-    id: number
-    name: string
-    description: string
-    image: string   
-}
-
-export interface StoryblokSpace {
-    id: number
-    name: string
-    domain: string
-    version: number
-}
-
-export interface StoryblokApiKey {
-    id: number
-    name: string
-    token: string
-    access: string
-}
-
-
-// Get all spaces for a given region
-export async function getSpaces(storyblok: StoryblokClient) {
-    const response = await storyblok.get('spaces/', {})
-
-    const spaces = response.data.spaces as StoryblokSpace[]
-
+export async function getDataSource(dataSourceId: string, stories: StoryblokStory[], abortSignal?: AbortSignal): Promise<DataSource> {
     
-    return {spaces, storyblok}
-}
+    console.log('Processing stories:', stories)
 
-// Get all components for a given space
-export async function getComponents(storyblok: StoryblokClient, spaceId: number) {
-    const response = await storyblok.get(`spaces/${spaceId}/components/`, {})
-
-    return response.data.components as StoryblokComponent[]
-}
-
-// Retrieve multiple stories with CDA for a specific space
-export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokApiKey[]) {
-    
-    apiKeys.map(async (apiKey) => {
-        if(apiKey.access === 'private') {
-            const response = await storyblok.get('cdn/stories/', {
-                token: apiKey.token,
-            })
-
-            return response.data.stories
-        }
-    })
-}
-
-// Get api keys for a given space
-export async function getApiKeys(spaceId: number, storyblok: StoryblokClient) {
-
-    const response = await storyblok.get(`spaces/${spaceId}/api_keys/`, {})
-
-    getStories(storyblok, response.data.api_keys)
-    
-    return response.data.api_keys as StoryblokApiKey[]
-}
-
-// Get all stories for a given space and component name
-export async function getStory(spaceId: number, componentName: string, storyblok: StoryblokClient) {
-    const response = await storyblok.get(`spaces/${spaceId}/stories/`, {
-        "contain_component": componentName
-    })
-    
-
-    console.log(response.data.stories)
-    return response.data.stories as StoryblokStory[]
-}
-
-export async function getDataSource(dataSourceId: string, storyblok: StoryblokClient): Promise<DataSource> {
-    const spaces = await getSpaces(storyblok)
+    // Fetch from your data source
+    const dataSourceResponse = await fetch(`/data/${dataSourceId}.json`, { signal: abortSignal })
+    const dataSource = await dataSourceResponse.json()
 
     // Map your source fields to supported field types in Framer
-    const fields: ManagedCollectionFieldInput[] = [
-        { id: "id", name: "ID", type: "string" },
-        { id: "name", name: "Name", type: "string" },
-    ]
+    const fields: ManagedCollectionFieldInput[] = []
+    for (const field of dataSource.fields) {
+
+        if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
+            if (!field.dataSourceId) {
+                console.warn(`No data source id found for collection reference field"${field.name}".`)
+            } else {
+                const collections = await framer.getManagedCollections()
+                const collection = await findAsync(collections, async collection => {
+                    const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+                    return dataSourceId === field.dataSourceId
+                })
+
+                if (!collection) {
+                    console.warn(`No collection found for data source "${field.dataSourceId}".`)
+                } else {
+                    field.collectionId = collection.id
+                }
+            }
+        }
+
+        switch (field.type) {
+            case "string":
+            case "number":
+            case "boolean":
+            case "color":
+            case "formattedText":
+            case "date":
+            case "link":
+            case "collectionReference":
+            case "multiCollectionReference":
+                fields.push({
+                    id: field.name,
+                    name: field.name,
+                    type: field.type,
+                    ...(field.collectionId && { collectionId: field.collectionId }),
+                })
+                break
+            case "image":
+            case "file":
+            case "enum":
+                console.warn(`Support for field type "${field.type}" is not implemented in this Plugin.`)
+                break
+            default: {
+                console.warn(`Unknown field type "${field.type}".`)
+            }
+        }
+    }
+
+    const items = dataSource.items as FieldDataInput[]
 
     const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
-
-    const items = spaces.spaces.map((space: StoryblokSpace) => {
-        const id = space.id.toString()
-        return {
-            [dataSourceOption?.idFieldId ?? "id"]: { type: "string" as const, value: id },
-            name: { type: "string" as const, value: space.name },
-        }
-    })
 
     const idField = fields.find(field => field.id === dataSourceOption?.idFieldId) ?? null
     const slugField = fields.find(field => field.id === dataSourceOption?.slugFieldId) ?? null
 
     return {
-        id: dataSourceId,
+        id: dataSource.id,
         idField,
         slugField,
         fields,
         items,
     }
+
 }
 
 export function mergeFieldsWithExistingFields(
@@ -277,7 +232,7 @@ export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
     previousSlugFieldId: string | null,
-    storyblok: StoryblokClient
+    stories: StoryblokStory[]
 ): Promise<{ didSync: boolean }> {
     if (!previousDataSourceId) {
         return { didSync: false }
@@ -288,7 +243,7 @@ export async function syncExistingCollection(
     }
 
     try {
-        const dataSource = await getDataSource(previousDataSourceId, storyblok)
+        const dataSource = await getDataSource(previousDataSourceId, stories)
         const existingFields = await collection.getFields()
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)

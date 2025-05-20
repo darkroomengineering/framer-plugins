@@ -1,55 +1,94 @@
 import { framer } from "framer-plugin"
-import { useState, useCallback } from "react"
-import { type DataSource, getApiKeys, getComponents, getDataSource, getSpaces, STORYBLOK_REGIONS, type StoryblokComponent, type StoryblokRegion, type StoryblokSpace } from "./data"
-import StoryblokClient from "storyblok-js-client"
-
+import { useEffect, useState} from "react"
+import { type DataSource, getDataSource,} from "./data"
+import { getComponents, getStoryblokSpacesFromPersonalAccessToken, type StoryblokSpace, type StoryblokComponent, getApiKeys, type StoryblokApiKey, type StoryblokStory, getStoriesWithComponent } from "./storyblok"
+import type StoryblokClient from "storyblok-js-client"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
 }
 
+type ClientWithRegion = {
+    region: string
+    client: StoryblokClient
+}
+
 export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) {
     const [selectedDataSourceId, setSelectedDataSourceId] = useState<string>("")
-    const [selectedRegion, setSelectedRegion] = useState<StoryblokRegion | string>('init')
     const [spaces, setSpaces] = useState<StoryblokSpace[]>([])
     const [components, setComponents] = useState<StoryblokComponent[]>([])
     const [selectedComponent, setSelectedComponent] = useState<string>("")
     const [isLoading, setIsLoading] = useState(false)
-    const [storyblok, setStoryblok] = useState<StoryblokClient>()
+    const [apiKeys, setApiKeys] = useState<StoryblokApiKey[] | null>(null)
+    const [clients, setClients] = useState<ClientWithRegion[]>([])
+    const [storiesByComponent, setStoriesByComponent] = useState<StoryblokStory[]>([])
 
-    const getStoryblokClient = useCallback((region: StoryblokRegion) => {
-        const token = localStorage.getItem("storyblok_token")
+    const token = localStorage.getItem("storyblok_token")
 
-        if (!token) {
-            throw new Error("No token found")
-        }
+    useEffect(() => {
+        getStoryblokSpacesFromPersonalAccessToken(token || "").then((result) => {
+            // Flatten spaces while preserving their region information
+            const spacesWithRegion = result.spaces.flatMap((spaces, index) => {
+                const client = result.clients[index]
+                if (!client) return []
+                return spaces.map(space => ({
+                    ...space,
+                    region: client.region
+                }))
+            })
+            setSpaces(spacesWithRegion)
+            setClients([...result.clients])
 
-        const storyblokClient = new StoryblokClient({
-            oauthToken: token,
-            region: region,
+            // If we have a selected space, fetch its components
+            if (selectedDataSourceId) {
+                const selectedSpace = spacesWithRegion.find(space => space.id.toString() === selectedDataSourceId)
+                if (selectedSpace) {
+                    const client = clients.find(c => c.region === selectedSpace.region)?.client
+                    if (client) {
+                        getComponents(client, Number.parseInt(selectedDataSourceId))
+                            .then(setComponents)
+                            .catch(error => {
+                                console.error("Failed to fetch components:", error)
+                            })
+                    }
+                }
+            }
         })
+    }, [token, selectedDataSourceId, clients])
 
-        return storyblokClient
-    }, [])
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
         try {
             setIsLoading(true)
-            localStorage.setItem("storyblok_region", selectedRegion)
-            if (!storyblok) {
-                throw new Error("No Storyblok client available")
-            }
-            const dataSource = await getDataSource(selectedDataSourceId, storyblok)
+            const dataSource = await getDataSource(selectedComponent, storiesByComponent)
             onSelectDataSource(dataSource)
         } catch (error) {
             console.error(error)
-            framer.notify(`Failed to load data source "${selectedDataSourceId}". Check the logs for more details.`, {
+            framer.notify(`Failed to load data source "${selectedComponent}". Check the logs for more details.`, {
                 variant: "error",
             })
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    // Fetch stories for a given component
+    const fetchStories = async (spaceId: string, componentId: string) => {
+        const space = spaces.find(s => s.id.toString() === spaceId)
+        const component = components.find(c => c.id.toString() === componentId)
+        const publicKey = apiKeys?.find(k => k.access === 'public')
+        const client = space ? clients.find(c => c.region === space.region)?.client : null
+
+        if (!space || !component || !publicKey || !client) return
+
+        try {
+            const stories = await getStoriesWithComponent(space.id, component.name, publicKey, client)
+            setStoriesByComponent(stories)
+        } catch (error) {
+            console.error("Failed to fetch stories:", error)
+            framer.notify("Failed to fetch stories for this component", { variant: "error" })
         }
     }
 
@@ -72,40 +111,20 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
             </div>
 
             <form onSubmit={handleSubmit}>
-                <label htmlFor="region">
-                    <select
-                        id="region"
-                        onChange={event => {
-                            const region = event.target.value as StoryblokRegion
-                            setSelectedRegion(region)
-                            const client = getStoryblokClient(region)
-                            getSpaces(client).then((value) => {
-                                setSpaces(value.spaces)
-                                setStoryblok(client)
-                            })
-                        }}
-                        value={selectedRegion}
-                    >
-                        <option value='init' disabled>Select Region</option>
-                        <option value={STORYBLOK_REGIONS.US}>United States (US)</option>
-                        <option value={STORYBLOK_REGIONS.EU}>Europe (EU)</option>
-                        <option value={STORYBLOK_REGIONS.CA}>Canada (CA)</option>
-                        <option value={STORYBLOK_REGIONS.AP}>Asia Pacific (AP)</option>
-                        <option value={STORYBLOK_REGIONS.CN}>China (CN)</option>
-                    </select>
-                </label>
-
                 <label htmlFor="spaces">
                     <select
                         id="spaces"
-                        onChange={event => {
-                            const spaceId = Number(event.target.value)
-                            setSelectedDataSourceId(event.target.value)
-                            if (spaceId && storyblok) {
-                                getComponents(storyblok, spaceId).then((value) => {
-                                    setComponents(value)
-                                })
-                                getApiKeys(spaceId, storyblok)
+                        onChange={async event => {
+                            const selectedSpaceId = event.target.value
+                            setSelectedDataSourceId(selectedSpaceId)
+                            
+                            const selectedSpace = spaces.find(space => space.id.toString() === selectedSpaceId)
+                            if (selectedSpace) {
+                                const client = clients.find(c => c.region === selectedSpace.region)?.client
+                                if (client) {
+                                    const keys = await getApiKeys(selectedSpace.id, client)
+                                    setApiKeys(keys)
+                                }
                             }
                         }}
                         value={selectedDataSourceId}
@@ -126,6 +145,7 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                         id="components"
                         onChange={event => {
                             setSelectedComponent(event.target.value)
+                            fetchStories(selectedDataSourceId, event.target.value)
                         }}
                         value={selectedComponent}
                         disabled={isLoading || components.length === 0}
@@ -134,16 +154,16 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                             {isLoading ? "Loading components..." : "Choose Component..."}
                         </option>
                         {components.map(({ id, name }) => (
-                            <option key={id} value={name}>
+                            <option key={id} value={id}>
                                 {name}
                             </option>
                         ))}
                     </select>
                 </label>
-                <button disabled={!selectedDataSourceId || isLoading} type="submit">
+                <button disabled={!selectedComponent || isLoading} type="submit">
                     {isLoading ? <div className="framer-spinner" /> : "Next"}
                 </button>
             </form>
-        </main >
+        </main>
     )
 }
