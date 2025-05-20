@@ -80,79 +80,50 @@ function slugify(text: string) {
 // }
 
 
-export async function getDataSource(dataSourceId: string, stories: StoryblokStory[], abortSignal?: AbortSignal): Promise<DataSource> {
-    
+export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
     console.log('Processing stories:', stories)
 
-    // Fetch from your data source
-    const dataSourceResponse = await fetch(`/data/${dataSourceId}.json`, { signal: abortSignal })
-    const dataSource = await dataSourceResponse.json()
-
     // Map your source fields to supported field types in Framer
-    const fields: ManagedCollectionFieldInput[] = []
-    for (const field of dataSource.fields) {
+    const fields: ManagedCollectionFieldInput[] = [
+        {id: 'id', name: 'id', type: 'string'} as ManagedCollectionFieldInput,
+        {id: 'name', name: 'name', type: 'string'} as ManagedCollectionFieldInput,
+        {id: 'slug', name: 'slug', type: 'string'} as ManagedCollectionFieldInput,
+        {id: 'content', name: 'content', type: 'formattedText'} as ManagedCollectionFieldInput,
+    ]
 
-        if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
-            if (!field.dataSourceId) {
-                console.warn(`No data source id found for collection reference field"${field.name}".`)
-            } else {
-                const collections = await framer.getManagedCollections()
-                const collection = await findAsync(collections, async collection => {
-                    const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
-                    return dataSourceId === field.dataSourceId
-                })
-
-                if (!collection) {
-                    console.warn(`No collection found for data source "${field.dataSourceId}".`)
-                } else {
-                    field.collectionId = collection.id
-                }
+    const items = stories.map(story => {
+        const item: FieldDataInput = {
+            id: {
+                value: story.id.toString(),
+                type: 'string'
+            },
+            name: {
+                value: story.name,
+                type: 'string'
+            },
+            slug: {
+                value: slugify(story.name),
+                type: 'string'
+            },
+            content: {
+                value: JSON.stringify(story),
+                type: 'formattedText'
             }
         }
 
-        switch (field.type) {
-            case "string":
-            case "number":
-            case "boolean":
-            case "color":
-            case "formattedText":
-            case "date":
-            case "link":
-            case "collectionReference":
-            case "multiCollectionReference":
-                fields.push({
-                    id: field.name,
-                    name: field.name,
-                    type: field.type,
-                    ...(field.collectionId && { collectionId: field.collectionId }),
-                })
-                break
-            case "image":
-            case "file":
-            case "enum":
-                console.warn(`Support for field type "${field.type}" is not implemented in this Plugin.`)
-                break
-            default: {
-                console.warn(`Unknown field type "${field.type}".`)
-            }
-        }
-    }
+        return item
+    })
 
-    const items = dataSource.items as FieldDataInput[]
-
-    const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
-
-    const idField = fields.find(field => field.id === dataSourceOption?.idFieldId) ?? null
-    const slugField = fields.find(field => field.id === dataSourceOption?.slugFieldId) ?? null
+    const idField = fields.find(field => field.id === "id") ?? null
+    const slugField = fields.find(field => field.id === "slug") ?? null
 
     return {
-        id: dataSource.id,
+        id: dataSourceId,
         idField,
         slugField,
         fields,
         items,
     }
-
 }
 
 export function mergeFieldsWithExistingFields(
@@ -264,3 +235,4 @@ export async function syncExistingCollection(
         return { didSync: false }
     }
 }
+
