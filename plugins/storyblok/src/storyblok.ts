@@ -1,10 +1,10 @@
 import StoryblokClient from "storyblok-js-client"
 
 // TODO: Add more regions
-type StoryblokRegion = "us" | "eu" | "ca"
+type StoryblokRegion = "us" | "eu" | "ca" | "cn" | "ap"
 
 
-export interface StoryblokSpace {
+export interface StoryblokSpace {   
     id: number
     name: string
     domain: string
@@ -105,7 +105,9 @@ export async function getStoryblokSpacesFromPersonalAccessToken(token: string) {
     const clients = [
         { region: "us", client: getStoryblokClient("us", token) },
         { region: "eu", client: getStoryblokClient("eu", token) },
-        { region: "ca", client: getStoryblokClient("ca", token) }
+        { region: "ca", client: getStoryblokClient("ca", token) },
+        // { region: "cn", client: getStoryblokClient("cn", token) },
+        { region: "ap", client: getStoryblokClient("ap", token) }
     ] as const
 
     const spacesByRegion = await Promise.all(clients.map(async (client) => {

@@ -54,6 +54,7 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                 }
             }
         })
+
     }, [token, selectedDataSourceId, clients])
 
 
@@ -62,6 +63,16 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
 
         try {
             setIsLoading(true)
+            
+            // Ensure we have stories before proceeding
+            if (!storiesByComponent.length) {
+                const space = spaces.find(s => s.id.toString() === selectedDataSourceId)
+                const component = components.find(c => c.id.toString() === selectedComponent)
+                if (space && component) {
+                    await fetchStories(selectedDataSourceId, selectedComponent)
+                }
+            }
+
             const dataSource = await getDataSource(selectedComponent, storiesByComponent)
             onSelectDataSource(dataSource)
         } catch (error) {
