@@ -13,11 +13,16 @@ type ClientWithRegion = {
     client: StoryblokClient
 }
 
+type SelectedComponent = {
+    id: string
+    name: string
+}
+
 export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) {
     const [selectedDataSourceId, setSelectedDataSourceId] = useState<string>("")
     const [spaces, setSpaces] = useState<StoryblokSpace[]>([])
     const [components, setComponents] = useState<StoryblokComponent[]>([])
-    const [selectedComponent, setSelectedComponent] = useState<string>("")
+    const [selectedComponent, setSelectedComponent] = useState<SelectedComponent | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [apiKeys, setApiKeys] = useState<StoryblokApiKey[] | null>(null)
     const [clients, setClients] = useState<ClientWithRegion[]>([])
@@ -65,19 +70,20 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
             setIsLoading(true)
             
             // Ensure we have stories before proceeding
-            if (!storiesByComponent.length) {
+            if (!storiesByComponent.length && selectedComponent) {
                 const space = spaces.find(s => s.id.toString() === selectedDataSourceId)
-                const component = components.find(c => c.id.toString() === selectedComponent)
-                if (space && component) {
-                    await fetchStories(selectedDataSourceId, selectedComponent)
+                if (space) {
+                    await fetchStories(selectedDataSourceId, selectedComponent.id)
                 }
             }
 
-            const dataSource = await getDataSource(selectedComponent, storiesByComponent)
+            if (!selectedComponent) return
+
+            const dataSource = await getDataSource(selectedComponent.name, storiesByComponent)
             onSelectDataSource(dataSource)
         } catch (error) {
             console.error(error)
-            framer.notify(`Failed to load data source "${selectedComponent}". Check the logs for more details.`, {
+            framer.notify(`Failed to load data source "${selectedComponent?.name}". Check the logs for more details.`, {
                 variant: "error",
             })
         } finally {
@@ -155,10 +161,14 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                     <select
                         id="components"
                         onChange={event => {
-                            setSelectedComponent(event.target.value)
-                            fetchStories(selectedDataSourceId, event.target.value)
+                            const componentId = event.target.value
+                            const component = components.find(c => c.id.toString() === componentId)
+                            if (component) {
+                                setSelectedComponent({ id: componentId, name: component.name })
+                                fetchStories(selectedDataSourceId, componentId)
+                            }
                         }}
-                        value={selectedComponent}
+                        value={selectedComponent?.id || ""}
                         disabled={isLoading || components.length === 0}
                     >
                         <option value="" disabled>

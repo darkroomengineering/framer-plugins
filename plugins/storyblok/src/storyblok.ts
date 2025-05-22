@@ -1,5 +1,4 @@
 import StoryblokClient from "storyblok-js-client"
-
 // TODO: Add more regions
 type StoryblokRegion = "us" | "eu" | "ca" | "cn" | "ap"
 
@@ -30,6 +29,29 @@ export interface StoryblokApiKey {
 export interface StoryblokStory {
     id: number
     name: string
+    content: Record<string, unknown>
+}
+
+/**
+ * Finds a component with the specified dataSourceId in a story's content
+ * @param content The story's content object
+ * @param dataSourceId The component ID to search for
+ * @returns The found component or null if not found
+ */
+export function findComponentInContent(content: Record<string, unknown>, dataSourceId: string): Record<string, unknown> | null {
+    if (content.component === dataSourceId) {
+        return content
+    }
+
+    // Search in nested objects
+    for (const value of Object.values(content)) {
+        if (typeof value === 'object' && value !== null) {
+            const result = findComponentInContent(value as Record<string, unknown>, dataSourceId)
+            if (result) return result
+        }
+    }
+
+    return null
 }
 
 // Retrieve multiple stories with CDA for a specific space
