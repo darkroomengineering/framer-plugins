@@ -5,7 +5,8 @@ import {
     type ManagedCollection,
     type ManagedCollectionItemInput,
 } from "framer-plugin"
-import type {  StoryblokStory } from "./storyblok"
+import { findComponentInContent } from "./storyblok"
+import type { StoryblokStory } from "./storyblok"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
@@ -82,13 +83,11 @@ function slugify(text: string) {
 
 export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
     console.log('Processing stories:', stories)
+    console.log('Processing dataSourceId:', dataSourceId)
 
-    // Map your source fields to supported field types in Framer
+    // Initialize with just the id field
     const fields: ManagedCollectionFieldInput[] = [
         {id: 'id', name: 'id', type: 'string'} as ManagedCollectionFieldInput,
-        {id: 'name', name: 'name', type: 'string'} as ManagedCollectionFieldInput,
-        {id: 'slug', name: 'slug', type: 'string'} as ManagedCollectionFieldInput,
-        {id: 'content', name: 'content', type: 'formattedText'} as ManagedCollectionFieldInput,
     ]
 
     const items = stories.map(story => {
@@ -96,18 +95,51 @@ export async function getDataSource(dataSourceId: string, stories: StoryblokStor
             id: {
                 value: story.id.toString(),
                 type: 'string'
-            },
-            name: {
-                value: story.name,
-                type: 'string'
-            },
-            slug: {
-                value: slugify(story.name),
-                type: 'string'
-            },
-            content: {
-                value: JSON.stringify(story),
-                type: 'formattedText'
+            }
+        }
+
+        const dataSourceComponent = findComponentInContent(story.content, dataSourceId)
+        if (dataSourceComponent) {
+            // Add all fields from the dataSourceComponent to the item
+            for (const [key, value] of Object.entries(dataSourceComponent)) {
+                // Skip component, _uid fields from the component
+                if (key !== 'component' && key !== '_uid') {
+                    
+                    if (!fields.some(field => field.id === key)) {
+                        const type = typeof value === 'string' ? 'string' : 
+                                   typeof value === 'number' ? 'number' :
+                                   typeof value === 'boolean' ? 'boolean' : 'string'
+                        
+                        fields.push({
+                            id: key,
+                            name: key,
+                            type
+                        } as ManagedCollectionFieldInput)
+                    }
+
+                    if (typeof value === 'string') {
+                        item[key] = {
+                            value: value,
+                            type: 'string'
+                        }
+                    } else if (typeof value === 'number') {
+                        item[key] = {
+                            value: value,
+                            type: 'number'
+                        }
+                    } else if (typeof value === 'boolean') {
+                        item[key] = {
+                            value: value,
+                            type: 'boolean'
+                        }
+                    } else {
+                        // For objects, null, or undefined, convert to string
+                        item[key] = {
+                            value: value === null || value === undefined ? '' : JSON.stringify(value),
+                            type: 'string'
+                        }
+                    }
+                }
             }
         }
 
@@ -115,12 +147,11 @@ export async function getDataSource(dataSourceId: string, stories: StoryblokStor
     })
 
     const idField = fields.find(field => field.id === "id") ?? null
-    const slugField = fields.find(field => field.id === "slug") ?? null
 
     return {
         id: dataSourceId,
         idField,
-        slugField,
+        slugField: null,
         fields,
         items,
     }
