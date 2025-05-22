@@ -7,18 +7,26 @@ import {
 } from "framer-plugin"
 import { findComponentInContent } from "./storyblok"
 import type { StoryblokStory } from "./storyblok"
+import { createUniqueSlug } from "./utils"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
     SLUG_FIELD_ID: "slugFieldId",
+    PERSONAL_ACCESS_TOKEN: "personalAccessToken",
+    SPACE_ID: "spaceId",
 } as const
+
+// this is used in FieldMapping.tsx to display the collections options in the dropdown
+export type ExtendedManagedCollectionFieldInput = ManagedCollectionFieldInput & {
+    collectionsOptions?: ManagedCollection[]
+}
 
 export interface DataSource {
     id: string
-    fields: readonly ManagedCollectionFieldInput[]
+    fields: readonly ExtendedManagedCollectionFieldInput[]
     items: FieldDataInput[]
-    idField: ManagedCollectionFieldInput | null // to be used as id field
-    slugField: ManagedCollectionFieldInput | null // to be used as slug field
+    idField: ManagedCollectionFieldInput
+    slugField: ManagedCollectionFieldInput | null
 }
 
 export type DataSourceOption = {
@@ -47,55 +55,21 @@ export const dataSourceOptions: DataSourceOption[] = []
  * }
  */
 
-const slugs = new Map<string, number>()
-
-function slugify(text: string) {
-    let newText = text
-    newText = newText.trim()
-    newText = newText.slice(0, 60) // limit to 60 characters
-
-    if (slugs.has(newText)) {
-        const count = slugs.get(newText) ?? 0
-        slugs.set(newText, count + 1)
-        newText = `${newText} ${count + 1}`
-    } else {
-        slugs.set(newText, 0)
-    }
-
-    const slug = newText
-        .replace(/^\s+|\s+$/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9 -]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/-+/g, "-")
-    return slug
-}
-
-// Find an item in an array using an async callback: https://stackoverflow.com/questions/55601062/using-an-async-function-in-array-find
-// async function findAsync<T>(arr: T[], asyncCallback: (item: T) => Promise<boolean>) {
-//     const promises = arr.map(asyncCallback)
-//     const results = await Promise.all(promises)
-//     const index = results.findIndex(result => result)
-//     return arr[index]
-// }
-
-
 export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
-    console.log('Processing stories:', stories)
-    console.log('Processing dataSourceId:', dataSourceId)
+    console.log("Processing stories:", stories)
+    console.log("Processing dataSourceId:", dataSourceId)
 
     // Initialize with just the id field
     const fields: ManagedCollectionFieldInput[] = [
-        {id: 'id', name: 'id', type: 'string'} as ManagedCollectionFieldInput,
+        { id: "id", name: "id", type: "string" } as ManagedCollectionFieldInput,
     ]
 
     const items = stories.map(story => {
         const item: FieldDataInput = {
             id: {
                 value: story.id.toString(),
-                type: 'string'
-            }
+                type: "string",
+            },
         }
 
         const dataSourceComponent = findComponentInContent(story.content, dataSourceId)
@@ -103,40 +77,44 @@ export async function getDataSource(dataSourceId: string, stories: StoryblokStor
             // Add all fields from the dataSourceComponent to the item
             for (const [key, value] of Object.entries(dataSourceComponent)) {
                 // Skip component, _uid fields from the component
-                if (key !== 'component' && key !== '_uid') {
-                    
+                if (key !== "component" && key !== "_uid") {
                     if (!fields.some(field => field.id === key)) {
-                        const type = typeof value === 'string' ? 'string' : 
-                                   typeof value === 'number' ? 'number' :
-                                   typeof value === 'boolean' ? 'boolean' : 'string'
-                        
+                        const type =
+                            typeof value === "string"
+                                ? "string"
+                                : typeof value === "number"
+                                  ? "number"
+                                  : typeof value === "boolean"
+                                    ? "boolean"
+                                    : "string"
+
                         fields.push({
                             id: key,
                             name: key,
-                            type
+                            type,
                         } as ManagedCollectionFieldInput)
                     }
 
-                    if (typeof value === 'string') {
+                    if (typeof value === "string") {
                         item[key] = {
                             value: value,
-                            type: 'string'
+                            type: "string",
                         }
-                    } else if (typeof value === 'number') {
+                    } else if (typeof value === "number") {
                         item[key] = {
                             value: value,
-                            type: 'number'
+                            type: "number",
                         }
-                    } else if (typeof value === 'boolean') {
+                    } else if (typeof value === "boolean") {
                         item[key] = {
                             value: value,
-                            type: 'boolean'
+                            type: "boolean",
                         }
                     } else {
                         // For objects, null, or undefined, convert to string
                         item[key] = {
-                            value: value === null || value === undefined ? '' : JSON.stringify(value),
-                            type: 'string'
+                            value: value === null || value === undefined ? "" : JSON.stringify(value),
+                            type: "string",
                         }
                     }
                 }
@@ -184,6 +162,8 @@ export async function syncCollection(
     const items: ManagedCollectionItemInput[] = []
     const unsyncedItems = new Set(await collection.getItemIds())
 
+    const existingSlugs = new Map<string, number>()
+
     for (let i = 0; i < dataSource.items.length; i++) {
         const item = dataSource.items[i]
         if (!item) throw new Error("Logic error")
@@ -216,7 +196,7 @@ export async function syncCollection(
 
         items.push({
             id: idValue.value,
-            slug: slugify(slugValue.value),
+            slug: createUniqueSlug(slugValue.value, existingSlugs),
             draft: false,
             fieldData,
         })
@@ -266,4 +246,3 @@ export async function syncExistingCollection(
         return { didSync: false }
     }
 }
-
