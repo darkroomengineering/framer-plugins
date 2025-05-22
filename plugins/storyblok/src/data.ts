@@ -19,6 +19,7 @@ export const PLUGIN_KEYS = {
     SLUG_FIELD_ID: "slugFieldId",
     PERSONAL_ACCESS_TOKEN: "personalAccessToken",
     SPACE_ID: "spaceId",
+    REGION: "region",
 } as const
 
 // this is used in FieldMapping.tsx to display the collections options in the dropdown

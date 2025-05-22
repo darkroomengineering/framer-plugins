@@ -11,10 +11,10 @@ import type StoryblokClient from "storyblok-js-client"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
-    token: string
+    personalAccessToken: string
 }
 
-export function SelectDataSource({ onSelectDataSource, token }: SelectDataSourceProps) {
+export function SelectDataSource({ onSelectDataSource, personalAccessToken }: SelectDataSourceProps) {
     const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>()
     const [selectedRegion, setSelectedRegion] = useState<StoryblokRegion | null>(null)
     const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>()
@@ -34,16 +34,20 @@ export function SelectDataSource({ onSelectDataSource, token }: SelectDataSource
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        getStoryblokSpacesAndClientsByRegion(token).then(result => {
-            setSpacesByRegion(result.spacesByRegion)
-            setClientsByRegion(result.clientsByRegion)
-        })
+        async function fetchSpacesAndClients() {
+            const { spacesByRegion, clientsByRegion } = await getStoryblokSpacesAndClientsByRegion(personalAccessToken)
+
+            setSpacesByRegion(spacesByRegion)
+            setClientsByRegion(clientsByRegion)
+        }
+
+        fetchSpacesAndClients()
 
         return () => {
             setSpacesByRegion({} as Record<StoryblokRegion, StoryblokSpace[]>)
             setClientsByRegion({} as Record<StoryblokRegion, StoryblokClient>)
         }
-    }, [token])
+    }, [personalAccessToken])
 
     useEffect(() => {
         async function init() {
@@ -105,7 +109,7 @@ export function SelectDataSource({ onSelectDataSource, token }: SelectDataSource
         }
 
         await getDataSource({
-            personalAccessToken: token,
+            personalAccessToken,
             region: selectedRegion,
             spaceId: selectedSpaceId,
             collectionId: selectedCollectionId,

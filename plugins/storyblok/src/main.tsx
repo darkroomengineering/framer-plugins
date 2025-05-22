@@ -12,6 +12,7 @@ const activeCollection = await framer.getActiveManagedCollection()
 const previousDataSourceId = await activeCollection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
 const previousSlugFieldId = await activeCollection.getPluginData(PLUGIN_KEYS.SLUG_FIELD_ID)
 const previousSpaceId = await activeCollection.getPluginData(PLUGIN_KEYS.SPACE_ID)
+const previousRegion = await activeCollection.getPluginData(PLUGIN_KEYS.REGION)
 
 const previousPersonalAccessToken = localStorage.getItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN)
 
@@ -35,6 +36,7 @@ if (didSync) {
                 previousSlugFieldId={previousSlugFieldId}
                 previousSpaceId={previousSpaceId}
                 previousPersonalAccessToken={previousPersonalAccessToken}
+                previousRegion={previousRegion}
             />
         </StrictMode>
     )

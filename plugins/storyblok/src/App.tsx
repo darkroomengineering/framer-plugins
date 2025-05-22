@@ -15,6 +15,7 @@ interface AppProps {
     previousSlugFieldId: string | null
     previousPersonalAccessToken: string | null
     previousSpaceId: string | null
+    previousRegion: string | null
 }
 
 export function App({
@@ -23,11 +24,12 @@ export function App({
     previousSlugFieldId,
     previousPersonalAccessToken,
     previousSpaceId,
+    previousRegion,
 }: AppProps) {
     const [personalAccessToken, setPersonalAccessToken] = useState<string | null>()
     const [dataSource, setDataSource] = useState<DataSource | null>(null)
     const [isLoading, setIsLoading] = useState(
-        Boolean(previousDataSourceId || previousPersonalAccessToken || previousSpaceId)
+        Boolean(previousDataSourceId || previousPersonalAccessToken || previousSpaceId || previousRegion)
     )
 
     useEffect(() => {
@@ -62,6 +64,8 @@ export function App({
                         `Error loading previously configured personal access token “${previousPersonalAccessToken}”. Check the logs for more details.`
                     )
                 }
+
+                // TODO: get spaces and clients
             } catch (error) {
                 if (abortController.signal.aborted) return
                 console.error(error)
@@ -81,8 +85,6 @@ export function App({
             abortController.abort()
         }
     }, [previousPersonalAccessToken])
-
-    console.log(dataSource)
 
     // Manage Button functionality
     // useEffect(() => {
@@ -117,8 +119,6 @@ export function App({
     //     }
     // }, [previousDataSourceId])
 
-    console.log(dataSource, personalAccessToken)
-
     if (isLoading) {
         return (
             <main className="loading">
@@ -142,7 +142,7 @@ export function App({
     if (!dataSource) {
         return (
             <Page previousPage="Authentication" onPreviousPage={() => setPersonalAccessToken(null)}>
-                <SelectDataSource onSelectDataSource={setDataSource} token={personalAccessToken} />
+                <SelectDataSource onSelectDataSource={setDataSource} personalAccessToken={personalAccessToken} />
             </Page>
         )
     }
