@@ -1,70 +1,125 @@
 import "./App.css"
 
 import { framer, type ManagedCollection } from "framer-plugin"
-import { useEffect, useLayoutEffect, useState } from "react"
-import { type DataSource, getDataSource } from "./data"
+import { useEffect, useState } from "react"
+import { type DataSource, PLUGIN_KEYS } from "./data"
 import { FieldMapping } from "./FieldMapping"
 import { SelectDataSource } from "./SelectDataSource"
-
-
+import { Auth } from "./components/auth"
+import Page from "./page"
+import { getTokenValidity } from "./storyblok"
 
 interface AppProps {
     collection: ManagedCollection
     previousDataSourceId: string | null
     previousSlugFieldId: string | null
+    previousPersonalAccessToken: string | null
+    previousSpaceId: string | null
 }
 
-
-export function App({ collection, previousDataSourceId, previousSlugFieldId }: AppProps) {
+export function App({
+    collection,
+    previousDataSourceId,
+    previousSlugFieldId,
+    previousPersonalAccessToken,
+    previousSpaceId,
+}: AppProps) {
+    const [personalAccessToken, setPersonalAccessToken] = useState<string | null>()
     const [dataSource, setDataSource] = useState<DataSource | null>(null)
-    const [isLoadingDataSource, setIsLoadingDataSource] = useState(Boolean(previousDataSourceId))
+    const [isLoading, setIsLoading] = useState(
+        Boolean(previousDataSourceId || previousPersonalAccessToken || previousSpaceId)
+    )
 
-    useLayoutEffect(() => {
-        const hasDataSourceSelected = Boolean(dataSource)
-
-        framer.showUI({
-            width: hasDataSourceSelected ? 360 : 260,
-            height: hasDataSourceSelected ? 425 : 340,
-            minWidth: hasDataSourceSelected ? 360 : undefined,
-            minHeight: hasDataSourceSelected ? 425 : undefined,
-            resizable: hasDataSourceSelected,
-        })
-    }, [dataSource])
-
-    // Manage Button functionality
     useEffect(() => {
-        if (!previousDataSourceId) {
-            return
+        if (personalAccessToken) {
+            localStorage.setItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN, personalAccessToken)
         }
+    }, [personalAccessToken])
 
+    useEffect(() => {
+        framer.showUI({
+            width: 360,
+            height: 350,
+        })
+    }, [])
+
+    useEffect(() => {
         const abortController = new AbortController()
 
-        setIsLoadingDataSource(true)
-        getDataSource(previousDataSourceId, abortController.signal)
-            .then(setDataSource)
-            .catch(error => {
+        async function init() {
+            setIsLoading(true)
+
+            try {
                 if (abortController.signal.aborted) return
 
+                if (!previousPersonalAccessToken) return
+
+                const isValid = await getTokenValidity(previousPersonalAccessToken)
+                if (isValid) {
+                    setPersonalAccessToken(previousPersonalAccessToken)
+                } else {
+                    throw new Error(
+                        `Error loading previously configured personal access token “${previousPersonalAccessToken}”. Check the logs for more details.`
+                    )
+                }
+            } catch (error) {
+                if (abortController.signal.aborted) return
                 console.error(error)
-                framer.notify(
-                    `Error loading previously configured data source “${previousDataSourceId}”. Check the logs for more details.`,
-                    {
-                        variant: "error",
-                    }
-                )
-            })
-            .finally(() => {
-                if (abortController.signal.aborted) return
+                framer.notify(error instanceof Error ? error.message : "An unknown error occurred", {
+                    variant: "error",
+                })
+            } finally {
+                if (!abortController.signal.aborted) {
+                    setIsLoading(false)
+                }
+            }
+        }
 
-                setIsLoadingDataSource(false)
-            })
+        init()
 
         return () => {
             abortController.abort()
         }
-    }, [previousDataSourceId])
+    }, [previousPersonalAccessToken])
 
-    if (isLoadingDataSource) {
+    console.log(dataSource)
+
+    // Manage Button functionality
+    // useEffect(() => {
+    //     if (!previousDataSourceId) {
+    //         return
+    //     }
+
+    //     const abortController = new AbortController()
+
+    //     setIsLoadingDataSource(true)
+    //     getDataSource(previousDataSourceId, abortController.signal)
+    //         .then(setDataSource)
+    //         .catch(error => {
+    //             if (abortController.signal.aborted) return
+
+    //             console.error(error)
+    //             framer.notify(
+    //                 `Error loading previously configured data source “${previousDataSourceId}”. Check the logs for more details.`,
+    //                 {
+    //                     variant: "error",
+    //                 }
+    //             )
+    //         })
+    //         .finally(() => {
+    //             if (abortController.signal.aborted) return
+
+    //             setIsLoadingDataSource(false)
+    //         })
+
+    //     return () => {
+    //         abortController.abort()
+    //     }
+    // }, [previousDataSourceId])
+
+    console.log(dataSource, personalAccessToken)
+
+    if (isLoading) {
         return (
             <main className="loading">
                 <div className="framer-spinner" />
@@ -72,8 +127,24 @@ export function App({ collection, previousDataSourceId, previousSlugFieldId }: A
         )
     }
 
+    if (!personalAccessToken) {
+        return (
+            <Page>
+                <Auth
+                    onValidToken={token => {
+                        setPersonalAccessToken(token)
+                    }}
+                />
+            </Page>
+        )
+    }
+
     if (!dataSource) {
-        return <SelectDataSource onSelectDataSource={setDataSource} />
+        return (
+            <Page previousPage="Authentication" onPreviousPage={() => setPersonalAccessToken(null)}>
+                <SelectDataSource onSelectDataSource={setDataSource} token={personalAccessToken} />
+            </Page>
+        )
     }
 
     return <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />

@@ -1,11 +1,21 @@
 import { framer } from "framer-plugin"
-import { useEffect, useState} from "react"
-import { type DataSource, getDataSource,} from "./data"
-import { getComponents, getStoryblokSpacesFromPersonalAccessToken, type StoryblokSpace, type StoryblokComponent, getApiKeys, type StoryblokApiKey, type StoryblokStory, getStoriesWithComponent } from "./storyblok"
+import { useEffect, useState } from "react"
+import { type DataSource, getDataSource } from "./data"
+import {
+    getComponents,
+    getStoryblokSpacesFromPersonalAccessToken,
+    type StoryblokSpace,
+    type StoryblokComponent,
+    getApiKeys,
+    type StoryblokApiKey,
+    type StoryblokStory,
+    getStoriesWithComponent,
+} from "./storyblok"
 import type StoryblokClient from "storyblok-js-client"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
+    token: string
 }
 
 type ClientWithRegion = {
@@ -18,7 +28,7 @@ type SelectedComponent = {
     name: string
 }
 
-export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) {
+export function SelectDataSource({ onSelectDataSource, token }: SelectDataSourceProps) {
     const [selectedDataSourceId, setSelectedDataSourceId] = useState<string>("")
     const [spaces, setSpaces] = useState<StoryblokSpace[]>([])
     const [components, setComponents] = useState<StoryblokComponent[]>([])
@@ -28,21 +38,20 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
     const [clients, setClients] = useState<ClientWithRegion[]>([])
     const [storiesByComponent, setStoriesByComponent] = useState<StoryblokStory[]>([])
 
-    const token = localStorage.getItem("storyblok_token")
-
     useEffect(() => {
-        getStoryblokSpacesFromPersonalAccessToken(token || "").then((result) => {
+        getStoryblokSpacesFromPersonalAccessToken(token).then(result => {
             // Flatten spaces while preserving their region information
             const spacesWithRegion = result.spaces.flatMap((spaces, index) => {
                 const client = result.clients[index]
                 if (!client) return []
                 return spaces.map(space => ({
                     ...space,
-                    region: client.region
+                    region: client.region,
                 }))
             })
             setSpaces(spacesWithRegion)
-            setClients([...result.clients])
+            const clients = [...result.clients]
+            setClients(clients)
 
             // If we have a selected space, fetch its components
             if (selectedDataSourceId) {
@@ -59,16 +68,14 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                 }
             }
         })
-
-    }, [token, selectedDataSourceId, clients])
-
+    }, [token, selectedDataSourceId])
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
         try {
             setIsLoading(true)
-            
+
             // Ensure we have stories before proceeding
             if (!storiesByComponent.length && selectedComponent) {
                 const space = spaces.find(s => s.id.toString() === selectedDataSourceId)
@@ -95,7 +102,7 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
     const fetchStories = async (spaceId: string, componentId: string) => {
         const space = spaces.find(s => s.id.toString() === spaceId)
         const component = components.find(c => c.id.toString() === componentId)
-        const publicKey = apiKeys?.find(k => k.access === 'public')
+        const publicKey = apiKeys?.find(k => k.access === "public")
         const client = space ? clients.find(c => c.region === space.region)?.client : null
 
         if (!space || !component || !publicKey || !client) return
@@ -110,31 +117,18 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
     }
 
     return (
-        <main className="framer-hide-scrollbar setup">
-            <div className="intro">
-                <div className="logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="none">
-                        <title>Logo</title>
-                        <path
-                            fill="currentColor"
-                            d="M15.5 8c3.59 0 6.5 1.38 6.5 3.083 0 1.702-2.91 3.082-6.5 3.082S9 12.785 9 11.083C9 9.38 11.91 8 15.5 8Zm6.5 7.398c0 1.703-2.91 3.083-6.5 3.083S9 17.101 9 15.398v-2.466c0 1.703 2.91 3.083 6.5 3.083s6.5-1.38 6.5-3.083Zm0 4.316c0 1.703-2.91 3.083-6.5 3.083S9 21.417 9 19.714v-2.466c0 1.702 2.91 3.083 6.5 3.083S22 18.95 22 17.248Z"
-                        />
-                    </svg>
-                </div>
-                <div className="content">
-                    <h2>CMS Starter</h2>
-                    <p>Everything you need to get started with a CMS Plugin.</p>
-                </div>
-            </div>
+        <div className="framer-hide-scrollbar setup">
+            <img src="/asset.jpg" alt="Greenhouse Hero" onDragStart={e => e.preventDefault()} />
 
             <form onSubmit={handleSubmit}>
-                <label htmlFor="spaces">
+                <label>
+                    <p>Space</p>
                     <select
                         id="spaces"
                         onChange={async event => {
                             const selectedSpaceId = event.target.value
                             setSelectedDataSourceId(selectedSpaceId)
-                            
+
                             const selectedSpace = spaces.find(space => space.id.toString() === selectedSpaceId)
                             if (selectedSpace) {
                                 const client = clients.find(c => c.region === selectedSpace.region)?.client
@@ -157,7 +151,8 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                         ))}
                     </select>
                 </label>
-                <label htmlFor="components">
+                <label>
+                    <p>Collection</p>
                     <select
                         id="components"
                         onChange={event => {
@@ -172,7 +167,7 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                         disabled={isLoading || components.length === 0}
                     >
                         <option value="" disabled>
-                            {isLoading ? "Loading components..." : "Choose Component..."}
+                            {isLoading ? "Loading Collections..." : "Choose Collection..."}
                         </option>
                         {components.map(({ id, name }) => (
                             <option key={id} value={id}>
@@ -185,6 +180,6 @@ export function SelectDataSource({ onSelectDataSource }: SelectDataSourceProps) 
                     {isLoading ? <div className="framer-spinner" /> : "Next"}
                 </button>
             </form>
-        </main>
+        </div>
     )
 }
