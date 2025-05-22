@@ -147,5 +147,9 @@ export function App({
         )
     }
 
-    return <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+    return (
+        <Page previousPage="Data Source" onPreviousPage={() => setDataSource(null)}>
+            <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+        </Page>
+    )
 }
