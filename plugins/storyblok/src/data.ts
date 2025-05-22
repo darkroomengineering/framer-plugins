@@ -5,8 +5,13 @@ import {
     type ManagedCollection,
     type ManagedCollectionItemInput,
 } from "framer-plugin"
-import { findComponentInContent } from "./storyblok"
-import type { StoryblokStory } from "./storyblok"
+import {
+    findCollectionInStories,
+    getComponentFromSpaceId,
+    getStoriesFromSpaceId,
+    getStoryblokClient,
+} from "./storyblok"
+import type { StoryblokRegion, StoryblokStory } from "./storyblok"
 import { createUniqueSlug } from "./utils"
 
 export const PLUGIN_KEYS = {
@@ -55,85 +60,122 @@ export const dataSourceOptions: DataSourceOption[] = []
  * }
  */
 
-export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
-    console.log("Processing stories:", stories)
-    console.log("Processing dataSourceId:", dataSourceId)
+export async function getDataSource({
+    personalAccessToken,
+    region,
+    spaceId,
+    collectionId,
+}: {
+    personalAccessToken: string
+    spaceId: number
+    collectionId: number
+    region: StoryblokRegion
+}): Promise<DataSource> {
+    console.log("getDataSource")
 
-    // Initialize with just the id field
-    const fields: ManagedCollectionFieldInput[] = [
-        { id: "id", name: "id", type: "string" } as ManagedCollectionFieldInput,
-    ]
+    const client = await getStoryblokClient(region, personalAccessToken)
 
-    const items = stories.map(story => {
-        const item: FieldDataInput = {
-            id: {
-                value: story.id.toString(),
-                type: "string",
-            },
-        }
-
-        const dataSourceComponent = findComponentInContent(story.content, dataSourceId)
-        if (dataSourceComponent) {
-            // Add all fields from the dataSourceComponent to the item
-            for (const [key, value] of Object.entries(dataSourceComponent)) {
-                // Skip component, _uid fields from the component
-                if (key !== "component" && key !== "_uid") {
-                    if (!fields.some(field => field.id === key)) {
-                        const type =
-                            typeof value === "string"
-                                ? "string"
-                                : typeof value === "number"
-                                  ? "number"
-                                  : typeof value === "boolean"
-                                    ? "boolean"
-                                    : "string"
-
-                        fields.push({
-                            id: key,
-                            name: key,
-                            type,
-                        } as ManagedCollectionFieldInput)
-                    }
-
-                    if (typeof value === "string") {
-                        item[key] = {
-                            value: value,
-                            type: "string",
-                        }
-                    } else if (typeof value === "number") {
-                        item[key] = {
-                            value: value,
-                            type: "number",
-                        }
-                    } else if (typeof value === "boolean") {
-                        item[key] = {
-                            value: value,
-                            type: "boolean",
-                        }
-                    } else {
-                        // For objects, null, or undefined, convert to string
-                        item[key] = {
-                            value: value === null || value === undefined ? "" : JSON.stringify(value),
-                            type: "string",
-                        }
-                    }
-                }
-            }
-        }
-
-        return item
-    })
-
-    const idField = fields.find(field => field.id === "id") ?? null
-
-    return {
-        id: dataSourceId,
-        idField,
-        slugField: null,
-        fields,
-        items,
+    if (!client) {
+        throw new Error(`Client not found`)
     }
+
+    const component = await getComponentFromSpaceId(client, spaceId, collectionId)
+
+    if (!component) {
+        throw new Error(`Component with id ${collectionId} not found`)
+    }
+
+    const stories = await getStoriesFromSpaceId(client, spaceId)
+
+    console.log({ component, stories })
+
+    const items = findCollectionInStories(stories, component.name)
+
+    const fields = component.schema
+
+    console.log("items", items)
+    console.log("fields", fields)
 }
+
+// export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
+//     console.log("Processing stories:", stories)
+//     console.log("Processing dataSourceId:", dataSourceId)
+
+//     // Initialize with just the id field
+//     const fields: ManagedCollectionFieldInput[] = [
+//         { id: "id", name: "id", type: "string" } as ManagedCollectionFieldInput,
+//     ]
+
+//     const items = stories.map(story => {
+//         const item: FieldDataInput = {
+//             id: {
+//                 value: story.id.toString(),
+//                 type: "string",
+//             },
+//         }
+
+//         const dataSourceComponent = findComponentInContent(story.content, dataSourceId)
+//         if (dataSourceComponent) {
+//             // Add all fields from the dataSourceComponent to the item
+//             for (const [key, value] of Object.entries(dataSourceComponent)) {
+//                 // Skip component, _uid fields from the component
+//                 if (key !== "component" && key !== "_uid") {
+//                     if (!fields.some(field => field.id === key)) {
+//                         const type =
+//                             typeof value === "string"
+//                                 ? "string"
+//                                 : typeof value === "number"
+//                                   ? "number"
+//                                   : typeof value === "boolean"
+//                                     ? "boolean"
+//                                     : "string"
+
+//                         fields.push({
+//                             id: key,
+//                             name: key,
+//                             type,
+//                         } as ManagedCollectionFieldInput)
+//                     }
+
+//                     if (typeof value === "string") {
+//                         item[key] = {
+//                             value: value,
+//                             type: "string",
+//                         }
+//                     } else if (typeof value === "number") {
+//                         item[key] = {
+//                             value: value,
+//                             type: "number",
+//                         }
+//                     } else if (typeof value === "boolean") {
+//                         item[key] = {
+//                             value: value,
+//                             type: "boolean",
+//                         }
+//                     } else {
+//                         // For objects, null, or undefined, convert to string
+//                         item[key] = {
+//                             value: value === null || value === undefined ? "" : JSON.stringify(value),
+//                             type: "string",
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+
+//         return item
+//     })
+
+//     const idField = fields.find(field => field.id === "id") ?? null
+
+//     return {
+//         id: dataSourceId,
+//         idField,
+//         slugField: null,
+//         fields,
+//         items,
+//     }
+// }
 
 export function mergeFieldsWithExistingFields(
     sourceFields: readonly ManagedCollectionFieldInput[],
