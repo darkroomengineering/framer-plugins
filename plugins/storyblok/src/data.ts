@@ -1,3 +1,4 @@
+import { type StoryblokGenericFieldType } from "storyblok-schema-types"
 import {
     type ManagedCollectionFieldInput,
     type FieldDataInput,
@@ -12,7 +13,7 @@ import {
     getStoryblokClient,
 } from "./storyblok"
 import type { StoryblokRegion, StoryblokStory } from "./storyblok"
-import { createUniqueSlug } from "./utils"
+import { capitalizeFirstLetter, createUniqueSlug } from "./utils"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
@@ -90,12 +91,83 @@ export async function getDataSource({
 
     console.log({ component, stories })
 
-    const items = findCollectionInStories(stories, component.name)
+    const bloks = findCollectionInStories(stories, component.name)
 
-    const fields = component.schema
+    const schema = component.schema
 
-    console.log("items", items)
+    // map schema to fields
+
+    const idField: ManagedCollectionFieldInput = {
+        id: "_uid",
+        name: "ID",
+        type: "string",
+    }
+
+    const fields: ManagedCollectionFieldInput[] = [idField]
+
+    for (const [key, { type }] of Object.entries(schema)) {
+        switch (type) {
+            case "text":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            // case "bloks":
+            //     fields.push({
+            //         id: key,
+            //         name: capitalizeFirstLetter(key),
+            //         type: "multiCollectionReference",
+            //         collectionId: "bloks",
+            //     })
+            //     break
+            default:
+                console.warn(`Unsupported field type: ${type}`)
+        }
+    }
+
+    // map occurences to items
+    const items: FieldDataInput[] = []
+
+    for (const blok of bloks) {
+        const itemData: FieldDataInput = {}
+
+        for (const [fieldName, value] of Object.entries(blok)) {
+            const field = fields.find(field => field.id === fieldName)
+
+            if (!field) {
+                console.warn(`Field with id ${fieldName} not found`)
+            } else {
+                switch (field.type) {
+                    case "string":
+                        itemData[field.id] = {
+                            value: String(value),
+                            type: field.type,
+                        }
+                        break
+                    default:
+                        console.warn(`Unsupported field type: ${field.type}`)
+                }
+            }
+        }
+
+        items.push(itemData)
+    }
+
+    console.log("schema", schema)
     console.log("fields", fields)
+
+    console.log("bloks", bloks)
+    console.log("items", items)
+
+    return {
+        id: component.name,
+        fields,
+        items,
+        idField,
+        slugField: null,
+    }
 }
 
 // export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {

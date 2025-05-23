@@ -8,6 +8,7 @@ import {
     getStoryblokSpacesAndClientsByRegion,
 } from "../storyblok"
 import type StoryblokClient from "storyblok-js-client"
+import { framer } from "framer-plugin"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
@@ -108,26 +109,32 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
             return
         }
 
-        await getDataSource({
-            personalAccessToken,
-            region: selectedRegion,
-            spaceId: selectedSpaceId,
-            collectionId: selectedCollectionId,
-        })
+        // await getDataSource({
+        //     personalAccessToken,
+        //     region: selectedRegion,
+        //     spaceId: selectedSpaceId,
+        //     collectionId: selectedCollectionId,
+        // })
 
-        // try {
-        //     setIsLoading(true)
+        try {
+            setIsLoading(true)
 
-        //     const dataSource = await getDataSource(selectedDataSourceId)
-        //     onSelectDataSource(dataSource)
-        // } catch (error) {
-        //     console.error(error)
-        //     framer.notify(`Failed to load data source “${selectedDataSourceId}”. Check the logs for more details.`, {
-        //         variant: "error",
-        //     })
-        // } finally {
-        //     setIsLoading(false)
-        // }
+            const dataSource = await getDataSource({
+                personalAccessToken,
+                region: selectedRegion,
+                spaceId: selectedSpaceId,
+                collectionId: selectedCollectionId,
+            })
+            // return
+            onSelectDataSource(dataSource)
+        } catch (error) {
+            console.error(error)
+            framer.notify(`Failed to load data source “${selectedCollectionId}”. Check the logs for more details.`, {
+                variant: "error",
+            })
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     return (

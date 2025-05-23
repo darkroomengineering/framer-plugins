@@ -1,15 +1,19 @@
 import { type ManagedCollectionFieldInput, framer, type ManagedCollection } from "framer-plugin"
-import { useEffect, useState } from "react"
-import { type DataSource, dataSourceOptions, mergeFieldsWithExistingFields, syncCollection } from "./data"
+import { useEffect, useRef, useState } from "react"
+import { type DataSource, dataSourceOptions, mergeFieldsWithExistingFields, syncCollection } from "../data"
+import { type ExtendedManagedCollectionFieldInput } from "../data"
 
 interface FieldMappingRowProps {
-    field: ManagedCollectionFieldInput
+    field: ExtendedManagedCollectionFieldInput
     originalFieldName: string | undefined
     disabled: boolean
     onToggleDisabled: (fieldId: string) => void
     onNameChange: (fieldId: string, name: string) => void
-    style?: React.CSSProperties
+    onCollectionChange: (fieldId: string, collectionId: string) => void
 }
+
+const isMissingReferenceField = (field: ManagedCollectionFieldInput) =>
+    (field.type === "multiCollectionReference" || field.type === "collectionReference") && !field.collectionId
 
 function FieldMappingRow({
     field,
@@ -17,8 +21,10 @@ function FieldMappingRow({
     disabled,
     onToggleDisabled,
     onNameChange,
-    style,
+    onCollectionChange,
 }: FieldMappingRowProps) {
+    const isMissingReference = isMissingReferenceField(field)
+
     return (
         <>
             <button
@@ -27,13 +33,12 @@ function FieldMappingRow({
                 aria-disabled={disabled}
                 onClick={() => onToggleDisabled(field.id)}
                 tabIndex={0}
-                style={style}
+                style={isMissingReference ? { cursor: "not-allowed" } : {}}
             >
                 <input type="checkbox" checked={!disabled} tabIndex={-1} readOnly />
                 <span>{originalFieldName ?? field.id}</span>
             </button>
-            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" >
-                <title>Toggle Field</title>
+            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none">
                 <path
                     fill="transparent"
                     stroke="#999"
@@ -43,27 +48,39 @@ function FieldMappingRow({
                     d="m2.5 7 3-3-3-3"
                 />
             </svg>
-            <input
-                type="text"
-                style={{ width: "100%", opacity: disabled ? 0.5 : 1, ...style }}
-                disabled={disabled}
-                placeholder={field.id}
-                value={field.name}
-                onChange={event => onNameChange(field.id, event.target.value)}
-                onKeyDown={event => {
-                    if (event.key === "Enter") {
-                        event.preventDefault()
-                    }
-                }}
-            />
+            {(field.type === "multiCollectionReference" || field.type === "collectionReference") &&
+            (field.collectionsOptions?.length ?? 0) > 1 ? (
+                <select
+                    style={{ width: "100%", opacity: disabled ? 0.5 : 1 }}
+                    disabled={disabled}
+                    value={field.collectionId}
+                    onChange={e => onCollectionChange(field.id, e.target.value)}
+                >
+                    {field.collectionsOptions?.map(collection => (
+                        <option key={collection.id} value={collection.id}>
+                            {collection.name}
+                        </option>
+                    ))}
+                </select>
+            ) : (
+                <input
+                    type="text"
+                    style={{
+                        width: "100%",
+                        opacity: disabled ? 0.5 : 1,
+                        ...(isMissingReference ? { cursor: "not-allowed" } : {}),
+                    }}
+                    disabled={disabled}
+                    placeholder={field.id}
+                    value={isMissingReference ? "Missing Collection" : field.name}
+                    onChange={event => onNameChange(field.id, event.target.value)}
+                />
+            )}
         </>
     )
 }
 
 const initialManagedCollectionFields: ManagedCollectionFieldInput[] = []
-
-const isMissingReferenceField = (field: ManagedCollectionFieldInput) =>
-    (field.type === "multiCollectionReference" || field.type === "collectionReference") && !field.collectionId
 
 interface FieldMappingProps {
     collection: ManagedCollection
@@ -145,6 +162,16 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
         })
     }
 
+    const changeCollectionId = (fieldId: string, collectionId: string) => {
+        setFields(prevFields => {
+            const updatedFields = prevFields.map(field => {
+                if (field.id !== fieldId) return field
+                return { ...field, collectionId }
+            })
+            return updatedFields
+        })
+    }
+
     const toggleFieldDisabledState = (fieldId: string) => {
         setIgnoredFieldIds(previousIgnoredFieldIds => {
             const updatedIgnoredFieldIds = new Set(previousIgnoredFieldIds)
@@ -158,6 +185,30 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
             return updatedIgnoredFieldIds
         })
     }
+
+    const triggerRef = useRef<HTMLDivElement>(null)
+    const [isScrolled, setIsScrolled] = useState(false)
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsScrolled(entry.isIntersecting)
+            },
+            {
+                root: null,
+                rootMargin: "0px",
+                threshold: 0,
+            }
+        )
+
+        if (triggerRef.current) {
+            observer.observe(triggerRef.current)
+        }
+
+        return () => {
+            observer.disconnect()
+        }
+    }, [fields])
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -196,8 +247,8 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
     }
 
     return (
-        <main className="framer-hide-scrollbar mapping">
-            <hr className="sticky-divider" />
+        <div className="framer-hide-scrollbar mapping">
+            {/* <hr className="sticky-divider" /> */}
             <form onSubmit={handleSubmit}>
                 <label className="slug-field" htmlFor="slugField">
                     Slug Field
@@ -229,10 +280,7 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                     {fields.map(field => (
                         <FieldMappingRow
                             key={`field-${field.id}`}
-                            field={{
-                                ...field,
-                                name: isMissingReferenceField(field) ? "Missing Collection" : field.name,
-                            }}
+                            field={field}
                             originalFieldName={dataSource.fields.find(sourceField => sourceField.id === field.id)?.name}
                             disabled={ignoredFieldIds.has(field.id)}
                             onToggleDisabled={() => {
@@ -240,14 +288,15 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                                 toggleFieldDisabledState(field.id)
                             }}
                             onNameChange={changeFieldName}
-                            style={{ cursor: isMissingReferenceField(field) ? "not-allowed" : "auto" }}
+                            onCollectionChange={changeCollectionId}
                         />
                     ))}
+                    <div ref={triggerRef} style={{ position: "absolute", bottom: "-50px", left: 0, right: 0 }}></div>
                 </div>
 
-                <footer>
+                <footer className={isScrolled ? "scrolled" : ""}>
                     <hr className="sticky-top" />
-                    <button disabled={isSyncing} tabIndex={0} type="submit">
+                    <button disabled={isSyncing} tabIndex={0}>
                         {isSyncing ? (
                             <div className="framer-spinner" />
                         ) : (
@@ -258,6 +307,6 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                     </button>
                 </footer>
             </form>
-        </main>
+        </div>
     )
 }
