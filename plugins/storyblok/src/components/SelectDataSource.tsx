@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
-import { type DataSource, getDataSource } from "./data"
+import { type DataSource, getDataSource } from "../data"
 import {
     type StoryblokSpace,
     type StoryblokComponent,
     type StoryblokRegion,
     getComponentsFromSpaceId,
     getStoryblokSpacesAndClientsByRegion,
-} from "./storyblok"
+} from "../storyblok"
 import type StoryblokClient from "storyblok-js-client"
 
 interface SelectDataSourceProps {
