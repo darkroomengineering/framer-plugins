@@ -1,4 +1,5 @@
 import StoryblokClient from "storyblok-js-client"
+import type { StoryblokGenericFieldType } from "storyblok-schema-types"
 // TODO: Add more regions
 // export type StoryblokRegion = "us" | "eu" | "ca" | "cn" | "ap"
 export type StoryblokRegion = "us" | "eu" | "ca" | "ap"
@@ -13,7 +14,7 @@ export interface StoryblokSpace {
 export interface StoryblokComponent {
     id: number
     name: string
-    schema: Record<string, unknown>
+    schema: StoryblokGenericFieldType
 }
 
 export interface StoryblokApiKey {

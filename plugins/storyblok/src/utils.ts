@@ -41,3 +41,7 @@ export async function filterAsync<T>(arr: T[], asyncCallback: (item: T) => Promi
     const results = await Promise.all(promises)
     return arr.filter((_, index) => results[index])
 }
+
+export function capitalizeFirstLetter(val: string) {
+    return val.charAt(0).toUpperCase() + val.slice(1)
+}
