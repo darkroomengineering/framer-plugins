@@ -114,6 +114,79 @@ export async function getDataSource({
                     type: "string",
                 })
                 break
+            case "textarea":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "boolean":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "boolean",
+                })
+                break
+            case "number":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "number",
+                })
+                break
+            // Richtext is not working
+            case "richtext":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "formattedText",
+                })
+                break
+            case "asset":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "image",
+                })
+                break
+            // Multiasset is not working
+            case "multiasset":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "image",
+                })
+                break
+            case "option":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "options":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            // Multilink is not working
+            case "multilink":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "link",
+                })
+                break
+            case "link":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "link",
+                })
+                break
             // case "bloks":
             //     fields.push({
             //         id: key,
@@ -142,7 +215,40 @@ export async function getDataSource({
                 switch (field.type) {
                     case "string":
                         itemData[field.id] = {
+                            value: Array.isArray(value) ? value.join(', ') : String(value),
+                            type: field.type,
+                        }
+                        break
+                    case "boolean":
+                        itemData[field.id] = {
+                            value: Boolean(value),
+                            type: field.type,
+                        }
+                        break
+                    case "number":
+                        itemData[field.id] = {
+                            value: Number(value),
+                            type: field.type,
+                        }
+                        break
+                    // To check if this is correct
+                    case "formattedText":
+                        itemData[field.id] = {
                             value: String(value),
+                            type: field.type,
+                        }
+                        break
+                    case "image":
+                        itemData[field.id] = {
+                            value: typeof value === 'object' && value !== null && 'filename' in value ? String(value.filename) : '',
+                            type: field.type,
+                        }
+                        break
+                    case "link":
+                        itemData[field.id] = {
+                            value: typeof value === 'object' && value !== null && 'url' in value 
+                                ? String(value.url) 
+                                : '',
                             type: field.type,
                         }
                         break
@@ -344,7 +450,7 @@ export async function syncExistingCollection(
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
         if (!slugField) {
-            framer.notify(`No field matches the slug field id “${previousSlugFieldId}”. Sync will not be performed.`, {
+            framer.notify(`No field matches the slug field id "${previousSlugFieldId}". Sync will not be performed.`, {
                 variant: "error",
             })
             return { didSync: false }
@@ -389,7 +495,7 @@ export async function syncExistingCollection(
         return { didSync: true }
     } catch (error) {
         console.error(error)
-        framer.notify(`Failed to sync collection “${previousDataSourceId}”. Check browser console for more details.`, {
+        framer.notify(`Failed to sync collection "${previousDataSourceId}". Check browser console for more details.`, {
             variant: "error",
         })
         return { didSync: false }
