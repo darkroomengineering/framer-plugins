@@ -328,8 +328,7 @@ export async function syncCollection(
 export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
-    previousSlugFieldId: string | null,
-    stories: StoryblokStory[]
+    previousSlugFieldId: string | null
 ): Promise<{ didSync: boolean }> {
     if (!previousDataSourceId) {
         return { didSync: false }
@@ -340,22 +339,57 @@ export async function syncExistingCollection(
     }
 
     try {
-        const dataSource = await getDataSource(previousDataSourceId, stories)
+        const dataSource = await getDataSource(previousDataSourceId)
         const existingFields = await collection.getFields()
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
         if (!slugField) {
-            framer.notify(`No field matches the slug field id "${previousSlugFieldId}". Sync will not be performed.`, {
+            framer.notify(`No field matches the slug field id “${previousSlugFieldId}”. Sync will not be performed.`, {
                 variant: "error",
             })
             return { didSync: false }
         }
 
-        await syncCollection(collection, dataSource, existingFields as ManagedCollectionFieldInput[], slugField)
+        const fields: ManagedCollectionFieldInput[] = []
+        for (const field of existingFields) {
+            if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    collectionId: field.collectionId,
+                })
+            } else if (field.type === "enum") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    cases: field.cases.map(c => ({
+                        id: c.id,
+                        name: c.name,
+                    })),
+                })
+            } else if (field.type === "file") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    allowedFileTypes: field.allowedFileTypes,
+                })
+            } else {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                })
+            }
+        }
+
+        await syncCollection(collection, dataSource, fields, slugField)
         return { didSync: true }
     } catch (error) {
         console.error(error)
-        framer.notify(`Failed to sync collection "${previousDataSourceId}". Check browser console for more details.`, {
+        framer.notify(`Failed to sync collection “${previousDataSourceId}”. Check browser console for more details.`, {
             variant: "error",
         })
         return { didSync: false }
