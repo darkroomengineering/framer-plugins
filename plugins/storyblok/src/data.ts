@@ -1,4 +1,4 @@
-import { type StoryblokGenericFieldType } from "storyblok-schema-types"
+// import { type StoryblokGenericFieldType } from "storyblok-schema-types"
 import {
     type ManagedCollectionFieldInput,
     type FieldDataInput,
@@ -105,6 +105,7 @@ export async function getDataSource({
 
     const fields: ManagedCollectionFieldInput[] = [idField]
 
+
     for (const [key, { type }] of Object.entries(schema)) {
         switch (type) {
             case "text":
@@ -135,14 +136,6 @@ export async function getDataSource({
                     type: "number",
                 })
                 break
-            // Richtext is not working
-            case "richtext":
-                fields.push({
-                    id: key,
-                    name: capitalizeFirstLetter(key),
-                    type: "formattedText",
-                })
-                break
             case "asset":
                 fields.push({
                     id: key,
@@ -150,14 +143,13 @@ export async function getDataSource({
                     type: "image",
                 })
                 break
-            // Multiasset is not working
-            case "multiasset":
-                fields.push({
-                    id: key,
-                    name: capitalizeFirstLetter(key),
-                    type: "image",
-                })
-                break
+            // case "multiasset":
+            //     fields.push({
+            //         id: key,
+            //         name: capitalizeFirstLetter(key),
+            //         type: "file",
+            //     })
+            //     break
             case "option":
                 fields.push({
                     id: key,
@@ -172,14 +164,6 @@ export async function getDataSource({
                     type: "string",
                 })
                 break
-            // Multilink is not working
-            case "multilink":
-                fields.push({
-                    id: key,
-                    name: capitalizeFirstLetter(key),
-                    type: "link",
-                })
-                break
             case "link":
                 fields.push({
                     id: key,
@@ -187,6 +171,35 @@ export async function getDataSource({
                     type: "link",
                 })
                 break
+            case "references":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "markdown":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "datetime":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "date",
+                })
+                break
+            case "richtext":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "formattedText",
+                })
+                break
+
             // case "bloks":
             //     fields.push({
             //         id: key,
@@ -231,10 +244,9 @@ export async function getDataSource({
                             type: field.type,
                         }
                         break
-                    // To check if this is correct
-                    case "formattedText":
+                    case "date":
                         itemData[field.id] = {
-                            value: String(value),
+                            value: typeof value === 'string' ? new Date(value).toISOString() : new Date().toISOString(),
                             type: field.type,
                         }
                         break
@@ -249,6 +261,12 @@ export async function getDataSource({
                             value: typeof value === 'object' && value !== null && 'url' in value 
                                 ? String(value.url) 
                                 : '',
+                            type: field.type,
+                        }
+                        break
+                    case "formattedText":
+                        itemData[field.id] = {
+                            value: String(value),
                             type: field.type,
                         }
                         break
