@@ -16,9 +16,9 @@ interface SelectDataSourceProps {
 }
 
 export function SelectDataSource({ onSelectDataSource, personalAccessToken }: SelectDataSourceProps) {
-    const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>()
+    const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>()
     const [selectedRegion, setSelectedRegion] = useState<StoryblokRegion | null>(null)
-    const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>()
+    const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>()
 
     const [spacesByRegion, setSpacesByRegion] = useState<Record<StoryblokRegion, StoryblokSpace[]>>(
         {} as Record<StoryblokRegion, StoryblokSpace[]>
@@ -55,7 +55,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
             if (selectedSpaceId) {
                 const selectedSpace = Object.values(spacesByRegion)
                     .flat()
-                    .find(space => space.id === selectedSpaceId)
+                    .find(space => space.id.toString() === selectedSpaceId)
 
                 if (!selectedSpace) {
                     console.error("No space found for selected space id")
@@ -65,7 +65,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                 let selectedClientId: StoryblokRegion | null = null
 
                 for (const [region, spaces] of Object.entries(spacesByRegion)) {
-                    if (spaces.find(space => space.id === selectedSpaceId)) {
+                    if (spaces.find(space => space.id.toString() === selectedSpaceId)) {
                         selectedClientId = region as StoryblokRegion
                         setSelectedRegion(region as StoryblokRegion)
                         break
@@ -102,19 +102,10 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        console.log({ selectedRegion, selectedSpaceId, selectedCollectionId })
-
         if (!selectedRegion || !selectedSpaceId || !selectedCollectionId) {
             console.error("Missing required fields")
             return
         }
-
-        // await getDataSource({
-        //     personalAccessToken,
-        //     region: selectedRegion,
-        //     spaceId: selectedSpaceId,
-        //     collectionId: selectedCollectionId,
-        // })
 
         try {
             setIsLoading(true)
@@ -125,7 +116,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                 spaceId: selectedSpaceId,
                 collectionId: selectedCollectionId,
             })
-            // return
+
             onSelectDataSource(dataSource)
         } catch (error) {
             console.error(error)
@@ -149,7 +140,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         onChange={async event => {
                             const selectedSpaceId = event.target.value
 
-                            setSelectedSpaceId(Number(selectedSpaceId))
+                            setSelectedSpaceId(selectedSpaceId)
                         }}
                         value={selectedSpaceId ? String(selectedSpaceId) : ""}
                         disabled={isLoading || spaces.length === 0}
@@ -171,7 +162,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         onChange={event => {
                             const selectedCollectionId = event.target.value
 
-                            setSelectedCollectionId(parseInt(selectedCollectionId))
+                            setSelectedCollectionId(selectedCollectionId)
                         }}
                         value={selectedCollectionId ? String(selectedCollectionId) : ""}
                         disabled={isLoading || collections.length === 0}

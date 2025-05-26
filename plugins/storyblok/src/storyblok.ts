@@ -69,7 +69,7 @@ export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokA
 }
 
 // Get api keys for a given space
-export async function getApiKeysFromSpaceId(storyblok: StoryblokClient, spaceId: number) {
+export async function getApiKeysFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/api_keys/`, {})
 
     return response.data.api_keys as StoryblokApiKey[]
@@ -77,7 +77,7 @@ export async function getApiKeysFromSpaceId(storyblok: StoryblokClient, spaceId:
 
 // Get all stories for a given space and component name
 export async function getStoriesFromComponentName(
-    spaceId: number,
+    spaceId: string,
     componentName: string,
     apiKey: StoryblokApiKey,
     storyblok: StoryblokClient
@@ -96,7 +96,7 @@ export async function getStoriesFromComponentName(
 }
 
 // Get all components for a given space
-export async function getComponentsFromSpaceId(storyblok: StoryblokClient, spaceId: number) {
+export async function getComponentsFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/components/`, {})
 
     console.log("response", response.data.components)
@@ -104,7 +104,7 @@ export async function getComponentsFromSpaceId(storyblok: StoryblokClient, space
     return response.data.components as StoryblokComponent[]
 }
 
-export async function getComponentFromSpaceId(storyblok: StoryblokClient, spaceId: number, componentId: number) {
+export async function getComponentFromSpaceId(storyblok: StoryblokClient, spaceId: string, componentId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/components/${componentId}`, {})
 
     return response.data.component as StoryblokComponent
@@ -119,7 +119,7 @@ export async function getSpaces(storyblok: StoryblokClient) {
     return spaces
 }
 
-export async function getSpaceFromId(storyblok: StoryblokClient, spaceId: number) {
+export async function getSpaceFromId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}`, {})
 
     return response.data.space as StoryblokSpace
@@ -205,7 +205,7 @@ export async function getTokenValidity(token: string): Promise<boolean> {
     return true
 }
 
-export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId: number) {
+export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const apiKeys = await getApiKeysFromSpaceId(storyblok, spaceId)
 
     const publicApiKey = apiKeys.find(key => key.access === "public")
@@ -222,7 +222,7 @@ export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId:
     return response.data.stories as StoryblokStory[]
 }
 
-export async function getApiKeyFromSpaceId(storyblok: StoryblokClient, spaceId: number) {
+export async function getApiKeyFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/api_keys/`, {})
 
     return response.data.api_keys as StoryblokApiKey[]

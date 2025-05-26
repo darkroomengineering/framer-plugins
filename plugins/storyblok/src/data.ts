@@ -12,7 +12,7 @@ import {
     getStoriesFromSpaceId,
     getStoryblokClient,
 } from "./storyblok"
-import type { StoryblokRegion, StoryblokStory } from "./storyblok"
+import type { StoryblokRegion } from "./storyblok"
 import { capitalizeFirstLetter, createUniqueSlug } from "./utils"
 
 export const PLUGIN_KEYS = {
@@ -34,6 +34,8 @@ export interface DataSource {
     items: FieldDataInput[]
     idField: ManagedCollectionFieldInput
     slugField: ManagedCollectionFieldInput | null
+    region: StoryblokRegion
+    spaceId: string
 }
 
 export type DataSourceOption = {
@@ -69,8 +71,8 @@ export async function getDataSource({
     collectionId,
 }: {
     personalAccessToken: string
-    spaceId: number
-    collectionId: number
+    spaceId: string
+    collectionId: string
     region: StoryblokRegion
 }): Promise<DataSource> {
     console.log("getDataSource")
@@ -104,7 +106,6 @@ export async function getDataSource({
     }
 
     const fields: ManagedCollectionFieldInput[] = [idField]
-
 
     for (const [key, { type }] of Object.entries(schema)) {
         switch (type) {
@@ -212,7 +213,7 @@ export async function getDataSource({
                 switch (field.type) {
                     case "string":
                         itemData[field.id] = {
-                            value: Array.isArray(value) ? value.join(', ') : String(value),
+                            value: Array.isArray(value) ? value.join(", ") : String(value),
                             type: field.type,
                         }
                         break
@@ -230,21 +231,23 @@ export async function getDataSource({
                         break
                     case "date":
                         itemData[field.id] = {
-                            value: typeof value === 'string' ? new Date(value).toISOString() : new Date().toISOString(),
+                            value: typeof value === "string" ? new Date(value).toISOString() : new Date().toISOString(),
                             type: field.type,
                         }
                         break
                     case "image":
                         itemData[field.id] = {
-                            value: typeof value === 'object' && value !== null && 'filename' in value ? String(value.filename) : '',
+                            value:
+                                typeof value === "object" && value !== null && "filename" in value
+                                    ? String(value.filename)
+                                    : "",
                             type: field.type,
                         }
                         break
                     case "link":
                         itemData[field.id] = {
-                            value: typeof value === 'object' && value !== null && 'url' in value 
-                                ? String(value.url) 
-                                : '',
+                            value:
+                                typeof value === "object" && value !== null && "url" in value ? String(value.url) : "",
                             type: field.type,
                         }
                         break
@@ -276,88 +279,10 @@ export async function getDataSource({
         items,
         idField,
         slugField: null,
+        region,
+        spaceId,
     }
 }
-
-// export async function getDataSource(dataSourceId: string, stories: StoryblokStory[]): Promise<DataSource> {
-//     console.log("Processing stories:", stories)
-//     console.log("Processing dataSourceId:", dataSourceId)
-
-//     // Initialize with just the id field
-//     const fields: ManagedCollectionFieldInput[] = [
-//         { id: "id", name: "id", type: "string" } as ManagedCollectionFieldInput,
-//     ]
-
-//     const items = stories.map(story => {
-//         const item: FieldDataInput = {
-//             id: {
-//                 value: story.id.toString(),
-//                 type: "string",
-//             },
-//         }
-
-//         const dataSourceComponent = findComponentInContent(story.content, dataSourceId)
-//         if (dataSourceComponent) {
-//             // Add all fields from the dataSourceComponent to the item
-//             for (const [key, value] of Object.entries(dataSourceComponent)) {
-//                 // Skip component, _uid fields from the component
-//                 if (key !== "component" && key !== "_uid") {
-//                     if (!fields.some(field => field.id === key)) {
-//                         const type =
-//                             typeof value === "string"
-//                                 ? "string"
-//                                 : typeof value === "number"
-//                                   ? "number"
-//                                   : typeof value === "boolean"
-//                                     ? "boolean"
-//                                     : "string"
-
-//                         fields.push({
-//                             id: key,
-//                             name: key,
-//                             type,
-//                         } as ManagedCollectionFieldInput)
-//                     }
-
-//                     if (typeof value === "string") {
-//                         item[key] = {
-//                             value: value,
-//                             type: "string",
-//                         }
-//                     } else if (typeof value === "number") {
-//                         item[key] = {
-//                             value: value,
-//                             type: "number",
-//                         }
-//                     } else if (typeof value === "boolean") {
-//                         item[key] = {
-//                             value: value,
-//                             type: "boolean",
-//                         }
-//                     } else {
-//                         // For objects, null, or undefined, convert to string
-//                         item[key] = {
-//                             value: value === null || value === undefined ? "" : JSON.stringify(value),
-//                             type: "string",
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-
-//         return item
-//     })
-
-//     const idField = fields.find(field => field.id === "id") ?? null
-
-//     return {
-//         id: dataSourceId,
-//         idField,
-//         slugField: null,
-//         fields,
-//         items,
-//     }
-// }
 
 export function mergeFieldsWithExistingFields(
     sourceFields: readonly ManagedCollectionFieldInput[],
@@ -432,14 +357,33 @@ export async function syncCollection(
 
     await collection.setPluginData(PLUGIN_KEYS.DATA_SOURCE_ID, dataSource.id)
     await collection.setPluginData(PLUGIN_KEYS.SLUG_FIELD_ID, slugField.id)
+    await collection.setPluginData(PLUGIN_KEYS.REGION, dataSource.region)
+    await collection.setPluginData(PLUGIN_KEYS.SPACE_ID, dataSource.spaceId.toString())
 }
 
 export async function syncExistingCollection(
     collection: ManagedCollection,
-    previousDataSourceId: string | null,
-    previousSlugFieldId: string | null
+    {
+        previousDataSourceId,
+        previousSlugFieldId,
+        previousRegion,
+        previousSpaceId,
+        previousPersonalAccessToken,
+    }: {
+        previousDataSourceId: string | null
+        previousSlugFieldId: string | null
+        previousRegion: StoryblokRegion | null
+        previousSpaceId: string | null
+        previousPersonalAccessToken: string | null
+    }
 ): Promise<{ didSync: boolean }> {
-    if (!previousDataSourceId) {
+    if (
+        !previousDataSourceId ||
+        !previousSlugFieldId ||
+        !previousRegion ||
+        !previousSpaceId ||
+        !previousPersonalAccessToken
+    ) {
         return { didSync: false }
     }
 
@@ -448,7 +392,12 @@ export async function syncExistingCollection(
     }
 
     try {
-        const dataSource = await getDataSource(previousDataSourceId)
+        const dataSource = await getDataSource({
+            personalAccessToken: previousPersonalAccessToken,
+            region: previousRegion,
+            spaceId: previousSpaceId,
+            collectionId: previousDataSourceId,
+        })
         const existingFields = await collection.getFields()
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)

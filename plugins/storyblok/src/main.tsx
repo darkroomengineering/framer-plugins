@@ -1,11 +1,11 @@
 import "framer-plugin/framer.css"
 
 import { framer } from "framer-plugin"
-import { StrictMode, useState, useEffect } from "react"
+import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./App.tsx"
 import { PLUGIN_KEYS, syncExistingCollection } from "./data.ts"
-// import { Login } from "./components/index.tsx"
+import type { StoryblokRegion } from "./storyblok.ts"
 
 const activeCollection = await framer.getActiveManagedCollection()
 
@@ -16,9 +16,15 @@ const previousRegion = await activeCollection.getPluginData(PLUGIN_KEYS.REGION)
 
 const previousPersonalAccessToken = localStorage.getItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN)
 
-// const { didSync } = await syncExistingCollection(activeCollection, previousDataSourceId, previousSlugFieldId)
+const { didSync } = await syncExistingCollection(activeCollection, {
+    previousDataSourceId,
+    previousSlugFieldId,
+    previousSpaceId,
+    previousRegion: previousRegion as StoryblokRegion,
+    previousPersonalAccessToken,
+})
 
-const didSync = false
+// const didSync = false
 
 if (didSync) {
     await framer.closePlugin("Synchronization successful", {
