@@ -111,8 +111,24 @@ export async function getDataSource({
 
     const fields: ManagedCollectionFieldInput[] = [idField]
 
-    for (const [key, { type }] of Object.entries(schema)) {
+    for (const [key, { type, component_whitelist }] of Object.entries(schema)) {
         switch (type) {
+            case "bloks":
+                if (component_whitelist?.length === 1) {
+                    const referenceCollectionId = component_whitelist?.[0]
+
+                    // TODO: check if the reference collection exists
+
+                    fields.push({
+                        id: key,
+                        name: capitalizeFirstLetter(key),
+                        type: "multiCollectionReference",
+                    })
+                } else {
+                    console.warn(`Unsupported reference to more than one collection: ${key}`)
+                }
+
+                break
             case "text":
                 fields.push({
                     id: key,
@@ -215,6 +231,15 @@ export async function getDataSource({
                 console.warn(`Field with id ${fieldName} not found`)
             } else {
                 switch (field.type) {
+                    case "multiCollectionReference":
+                        if (Array.isArray(value)) {
+                            itemData[field.id] = {
+                                value: value.map((item: { _uid: string }) => item._uid),
+                                type: field.type,
+                                // collectionId: field.collectionId,
+                            }
+                        }
+                        break
                     case "string":
                         itemData[field.id] = {
                             value: Array.isArray(value) ? value.join(", ") : String(value),
@@ -257,13 +282,14 @@ export async function getDataSource({
                         break
                     case "formattedText":
                         itemData[field.id] = {
-                            value: value && typeof value === "object" && "type" in value && "content" in value
-                                ? String(render(value as StoryblokRichTextNode))
-                                : "",
+                            value:
+                                value && typeof value === "object" && "type" in value && "content" in value
+                                    ? String(render(value as StoryblokRichTextNode))
+                                    : "",
                             type: field.type,
                         }
                         break
-                    
+
                     default:
                         console.warn(`Unsupported field type: ${field.type}`)
                 }
