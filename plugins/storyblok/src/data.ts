@@ -14,6 +14,8 @@ import {
 } from "./storyblok"
 import type { StoryblokRegion } from "./storyblok"
 import { capitalizeFirstLetter, createUniqueSlug } from "./utils"
+import { richTextResolver } from "@storyblok/richtext"
+import type { StoryblokRichTextNode } from "@storyblok/richtext"
 
 export const PLUGIN_KEYS = {
     DATA_SOURCE_ID: "dataSourceId",
@@ -64,6 +66,8 @@ export const dataSourceOptions: DataSourceOption[] = []
  * }
  */
 
+const { render } = richTextResolver()
+
 export async function getDataSource({
     personalAccessToken,
     region,
@@ -80,7 +84,7 @@ export async function getDataSource({
     const client = await getStoryblokClient(region, personalAccessToken)
 
     if (!client) {
-        throw new Error(`Client not found`)
+        throw new Error("Client not found")
     }
 
     const component = await getComponentFromSpaceId(client, spaceId, collectionId)
@@ -253,7 +257,9 @@ export async function getDataSource({
                         break
                     case "formattedText":
                         itemData[field.id] = {
-                            value: String(value),
+                            value: value && typeof value === "object" && "type" in value && "content" in value
+                                ? String(render(value as StoryblokRichTextNode))
+                                : "",
                             type: field.type,
                         }
                         break
