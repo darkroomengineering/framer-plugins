@@ -17,20 +17,14 @@ interface FramerLocalizationGroup {
   sources: FramerLocalizationString[]
 }
 
-/**
-* Parses Framer's localization data into a map of locale codes to flat translation objects.
-* Example output:
-* {
-*   "en": { "common.greeting": "Hello", "user.profileTitle": "Profile" },
-* }
-*/
+export type LokaliseData = Record<string, Record<string, string>>
 
 export function parseFramerDataForLokalise(
   baseLocale: string,
   locales: readonly FramerLocale[],
   groups: readonly FramerLocalizationGroup[]
-): Record<string, Record<string, string>> {
-  const lokaliseDataMap: Record<string, Record<string, string>> = {}
+): LokaliseData {
+  const lokaliseDataMap: LokaliseData = {}
 
   if (!locales || !groups) {
       console.log("Lokalise parsing: Locales or groups data is missing or empty.")
@@ -42,7 +36,7 @@ export function parseFramerDataForLokalise(
   
   for (const group of groups) {
   for (const source of group.sources) {
-      const lokaliseKey = `${group.id}.${source.id}` 
+      const lokaliseKey = `${group.id}:${source.id}` 
       translationsForLocale[lokaliseKey] = source.value 
   }
 

@@ -1,6 +1,6 @@
 /* Your Plugin CSS */
 
-main {
+.main {
     display: flex;
     flex-direction: column;
     align-items: start;
@@ -10,13 +10,6 @@ main {
 
     user-select: none;
     -webkit-user-select: none;
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    gap: 10px;
 }
 
 .sticky-divider {
@@ -47,3 +40,14 @@ form {
     border-radius: 8px;
 }
 
+.title {
+    text-align: center;
+    width: 100%;
+}
+
+.image {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 8px;
+}

@@ -35,3 +35,9 @@ export async function findAsync<T>(arr: T[], asyncCallback: (item: T) => Promise
     const index = results.findIndex(result => result)
     return arr[index]
 }
+
+export function isEmptyArray(arr: unknown[] | readonly unknown[]) {
+    if (!arr) return true
+    if (arr.length === 0) return true
+    return false
+}

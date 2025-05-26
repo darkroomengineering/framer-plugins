@@ -1,9 +1,9 @@
 import { useEffect } from "react"
 import { framer } from "framer-plugin"
-import { getProjects, uploadSingleLanguageTranslations } from "./api"
+import { getProjects, uploadTranslations } from "./api"
 import { parseFramerDataForLokalise } from "./parse"
-
-const baseLocale = "en"
+import { isEmptyArray } from "../src/utils"
+import type { LokaliseData } from "./parse"
 
 export function useUploadTranslations(uploading: boolean, authToken: string | null) {
     useEffect(() => {
@@ -11,16 +11,17 @@ export function useUploadTranslations(uploading: boolean, authToken: string | nu
 
         const fetchAndUploadTranslations = async () => {
             try {
+                const baseLocale = await framer.getDefaultLocale()
                 const locales = await framer.getLocales()
                 const groups = await framer.getLocalizationGroups()
 
-                if (!locales || locales.length === 0 || !groups || groups.length === 0) {
+                if (isEmptyArray(locales) || isEmptyArray(groups)) {
                     console.log("Framer locales or groups data is missing or empty.")
                     return
                 }
 
                 // Parse the Framer data for Lokalise
-                const parsedData = parseFramerDataForLokalise(baseLocale, locales, groups)
+                const parsedData = parseFramerDataForLokalise(baseLocale.code, locales, groups)
 
                 // Get the projects
                 const projectsData = await getProjects(authToken)
@@ -34,29 +35,21 @@ export function useUploadTranslations(uploading: boolean, authToken: string | nu
                 const selectedProject = projectsData.projects[0]
                 const projectId = selectedProject.project_id
                 const projectBaseIso = selectedProject.base_language_iso
-                const filenameForUpload = `framer_translations_${projectBaseIso}.json`
+                const filenameForUpload = "framer_translations_" + projectBaseIso + ".json"
 
-                try {
-                    const uploadResult = await uploadSingleLanguageTranslations(
-                        authToken,
-                        projectId,
-                        projectBaseIso,
-                        `framer_translations_${projectBaseIso}.json`,
-                        parsedData[projectBaseIso]
-                    )
-                    console.log(`Upload queued successfully for ${filenameForUpload}:`, uploadResult)
-                } catch (uploadError: unknown) {
-                    if (uploadError instanceof Error) {
-                        console.error(`Error uploading ${filenameForUpload}:`, uploadError.message, uploadError)
-                    } else {
-                        console.error(`Error uploading ${filenameForUpload}:`, String(uploadError))
-                    }
-                }
+                const uploadResult = await uploadTranslations(
+                    authToken,
+                    projectId,
+                    projectBaseIso,
+                    filenameForUpload,
+                    parsedData[projectBaseIso] as unknown as LokaliseData
+                )
+                console.log(`Upload queued successfully for ${filenameForUpload}:`, uploadResult)
             } catch (error: unknown) {
                 if (error instanceof Error) {
-                    console.error("Error in fetchAndUploadTranslations:", error.message, error)
+                    console.log("Error in fetchAndUploadTranslations:", error.message, error)
                 } else {
-                    console.error("Error in fetchAndUploadTranslations:", String(error))
+                    console.log("Error in fetchAndUploadTranslations:", String(error))
                 }
             }
         }

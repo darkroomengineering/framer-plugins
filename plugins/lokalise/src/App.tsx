@@ -11,10 +11,7 @@ export function App({ token }: { token: string }) {
     useLayoutEffect(() => {
         framer.showUI({
             width: 360,
-            height: 425,
-            minWidth: 360,
-            minHeight: 425,
-            resizable: true,
+            height: 325,
         })
     }, [])
 
@@ -24,7 +21,8 @@ export function App({ token }: { token: string }) {
 
     return (
         <div className="main">
-            <h1>Lokalise Plugin</h1>
+            <h1 className="title">Lokalise</h1>
+            <img src="/lokalise.png" alt="Lokalise" className="image" />
             {UploadTranslations(authToken)}
             {DownloadTranslations(authToken)}
         </div>
