@@ -143,13 +143,6 @@ export async function getDataSource({
                     type: "image",
                 })
                 break
-            // case "multiasset":
-            //     fields.push({
-            //         id: key,
-            //         name: capitalizeFirstLetter(key),
-            //         type: "file",
-            //     })
-            //     break
             case "option":
                 fields.push({
                     id: key,
@@ -164,7 +157,7 @@ export async function getDataSource({
                     type: "string",
                 })
                 break
-            case "link":
+            case "multilink":
                 fields.push({
                     id: key,
                     name: capitalizeFirstLetter(key),
@@ -199,15 +192,6 @@ export async function getDataSource({
                     type: "formattedText",
                 })
                 break
-
-            // case "bloks":
-            //     fields.push({
-            //         id: key,
-            //         name: capitalizeFirstLetter(key),
-            //         type: "multiCollectionReference",
-            //         collectionId: "bloks",
-            //     })
-            //     break
             default:
                 console.warn(`Unsupported field type: ${type}`)
         }
@@ -270,6 +254,7 @@ export async function getDataSource({
                             type: field.type,
                         }
                         break
+                    
                     default:
                         console.warn(`Unsupported field type: ${field.type}`)
                 }
