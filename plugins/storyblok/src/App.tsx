@@ -2,12 +2,12 @@ import "./App.css"
 
 import { framer, type ManagedCollection } from "framer-plugin"
 import { useEffect, useState } from "react"
-import { type DataSource, PLUGIN_KEYS } from "./data"
+import { type DataSource, getDataSource, PLUGIN_KEYS } from "./data"
 import { FieldMapping } from "./components/FieldMapping.tsx"
 import { SelectDataSource } from "./components/SelectDataSource"
 import { Auth } from "./components/auth"
 import Page from "./page"
-import { getTokenValidity } from "./storyblok"
+import { getTokenValidity, type StoryblokRegion } from "./storyblok"
 
 interface AppProps {
     collection: ManagedCollection
@@ -15,7 +15,7 @@ interface AppProps {
     previousSlugFieldId: string | null
     previousPersonalAccessToken: string | null
     previousSpaceId: string | null
-    previousRegion: string | null
+    previousRegion: StoryblokRegion | null
 }
 
 export function App({
@@ -65,7 +65,18 @@ export function App({
                     )
                 }
 
-                // TODO: get spaces and clients
+                if (!previousRegion || !previousSpaceId || !previousDataSourceId) {
+                    throw new Error("Missing required fields")
+                }
+
+                const dataSource = await getDataSource({
+                    personalAccessToken: previousPersonalAccessToken,
+                    region: previousRegion,
+                    spaceId: previousSpaceId,
+                    collectionId: previousDataSourceId,
+                })
+
+                setDataSource(dataSource)
             } catch (error) {
                 if (abortController.signal.aborted) return
                 console.error(error)
