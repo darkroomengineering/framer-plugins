@@ -1,3 +1,5 @@
+import type { LocalizationData } from "framer-plugin"
+
 // Assumed type definitions for data from Framer
 interface FramerLocale {
   code: string // e.g., "en", "fr-FR"
@@ -47,4 +49,42 @@ export function parseFramerDataForLokalise(
 }
 
   return lokaliseDataMap
+}
+
+export function parseLokaliseDataForFramer(
+  lokaliseData: Record<string, Record<string, string>>,
+  locales: readonly FramerLocale[],
+  groups: readonly FramerLocalizationGroup[]
+): LocalizationData {
+  const localizationData: LocalizationData = { valuesBySource: {} }
+
+  // Process each locale's translations
+  for (const [localeCode, translations] of Object.entries(lokaliseData)) {
+    const targetLocale = locales.map((local) => ({
+      ...local,
+      code: local.code.replace("-", "_")
+    })).find(locale => locale.code === localeCode)
+
+    if (!targetLocale) continue
+
+    // Process each translation for this locale
+    for (const [lokaliseKey, translatedValue] of Object.entries(translations)) {
+      const [groupId, sourceId] = lokaliseKey.split(':')
+
+      if(!sourceId || !groupId) continue
+          
+      const sourceExists = groups.some(group => 
+        group.id === groupId && 
+        group.sources.some(source => source.id === sourceId)
+      )
+      
+      if (!sourceExists) continue  
+        
+      localizationData.valuesBySource![sourceId] = {
+        [targetLocale.id]: { action: "set", value: translatedValue }
+      }
+    }
+  }
+
+  return localizationData
 }

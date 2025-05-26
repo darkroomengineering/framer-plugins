@@ -69,9 +69,8 @@ export async function getProjectLanguages(apiKey: string, projectId: string) {
 export async function getTranslationsKeys(
   authToken: string,
   projectId: string,
-  languageId: number
 ): Promise<LokaliseKey[]> {
-  const endpoint = `${baseApiUrl}/projects/${projectId}/keys?filter_lang_id=${languageId}&limit=5000`
+  const endpoint = `${baseApiUrl}/projects/${projectId}/keys?limit=5000`
 
   const response = await fetch(endpoint, {
     method: "GET",
@@ -82,30 +81,35 @@ export async function getTranslationsKeys(
   return keys;
 }   
 
-export async function getTranslationsAsJson(
+export async function downloadAllTranslationsAsJson(
     authToken: string,
-    projectId: string,
-    langIso: string, 
-    languageId: number
-): Promise<Record<string, string>> {
-    const endpoint = `${baseApiUrl}/projects/${projectId}/translations?filter_lang_id=${languageId}&disable_references=1&limit=5000`;
+    projectId: string
+): Promise<LokaliseData> {
+    const endpoint = `${baseApiUrl}/projects/${projectId}/translations?disable_references=1&limit=5000`;
 
     const response = await fetch(endpoint, {
         method: "GET",
         headers: { ...HEADERS, "x-api-token": authToken },
     });
 
-    const {translations} = await handleError(response, `Failed to fetch translations for ${langIso} (ID: ${languageId})`)
+    const {translations} = await handleError(response, `Failed to fetch all translations`)
 
-    // We need the keys to map id to keys name
-    const keys = await getTranslationsKeys(authToken, projectId, languageId)
+    // Get all keys
+    const keys = await getTranslationsKeys(authToken, projectId)
 
-    const result: Record<string, string> = {};
+    // Group translations by language code
+    const result: Record<string, Record<string, string>> = {};
+    
     for (const translation of translations) {
+        const langCode = translation.language_iso // Use language_iso directly
         const keyName = keys.find(key => key.key_id === translation.key_id)?.key_name.web;
-        if (keyName) {
-            result[keyName] = translation.translation;
+
+        if(!langCode || !keyName) continue
+      
+        if (!result[langCode]) {
+            result[langCode] = {}
         }
+        result[langCode][keyName] = translation.translation;
     }
 
     return result;

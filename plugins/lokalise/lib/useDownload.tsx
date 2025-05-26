@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react"
 import { framer } from "framer-plugin"
-import { getProjectLanguages, getProjects, getTranslationsAsJson } from "./api"
+import { getProjects, downloadAllTranslationsAsJson } from "./api"
+import { isEmptyArray } from "../src/utils"
+import { parseLokaliseDataForFramer } from "./parse"
 
 export function useDownloadTranslations(authToken: string | null) {
     const [isLoading, setIsLoading] = useState(false)
@@ -15,10 +17,13 @@ export function useDownloadTranslations(authToken: string | null) {
         setIsLoading(true)
         setError(null)
 
+        const locales = await framer.getLocales()
+        const groups = await framer.getLocalizationGroups()
+
         // Get the projects
         const projectsData = await getProjects(authToken)
 
-        if (!projectsData.projects || projectsData.projects.length === 0) {
+        if (isEmptyArray(projectsData.projects)) {
             console.log("No projects found via lib/getProjects. Cannot proceed with uploads.")
             return
         }
@@ -26,19 +31,13 @@ export function useDownloadTranslations(authToken: string | null) {
         // Get the project ID and base language ISO
         const selectedProject = projectsData.projects[0]
         const projectId = selectedProject.project_id
-        const projectBaseIso = selectedProject.base_language_iso
-
-        const languagesData = await getProjectLanguages(authToken, projectId)
-        const availableLokaliseIsos = languagesData.languages.filter(
-            (lang: { lang_iso: string }) => lang.lang_iso !== projectBaseIso
-        )
-
-        const langIso = availableLokaliseIsos[0].lang_iso
-        const langId = availableLokaliseIsos[0].lang_id
 
         try {
-            const translations = await getTranslationsAsJson(authToken, projectId, langIso, langId)
-            console.log(translations)
+            const translations = await downloadAllTranslationsAsJson(authToken, projectId)
+
+            const parsedData = parseLokaliseDataForFramer(translations, locales, groups)
+
+            await framer.setLocalizationData(parsedData)
         } catch (e: unknown) {
             console.error("Failed to download or apply translations:", e)
             setError(`Error: ${e.message}`)
