@@ -13,7 +13,7 @@ import {
     getStoryblokClient,
 } from "./storyblok"
 import type { StoryblokRegion } from "./storyblok"
-import { capitalizeFirstLetter, createUniqueSlug } from "./utils"
+import { capitalizeFirstLetter, createUniqueSlug, filterAsync } from "./utils"
 import { richTextResolver } from "@storyblok/richtext"
 import type { StoryblokRichTextNode } from "@storyblok/richtext"
 
@@ -109,20 +109,36 @@ export async function getDataSource({
         type: "string",
     }
 
-    const fields: ManagedCollectionFieldInput[] = [idField]
+    const fields: ExtendedManagedCollectionFieldInput[] = [idField]
 
     for (const [key, { type, component_whitelist }] of Object.entries(schema)) {
         switch (type) {
             case "bloks":
                 if (component_whitelist?.length === 1) {
-                    const referenceCollectionId = component_whitelist?.[0]
+                    let collectionId = ""
+                    let matchingCollections: ManagedCollection[] = []
 
-                    // TODO: check if the reference collection exists
+                    const referenceCollectionId = component_whitelist?.[0]
+                    const managedCollections = await framer.getManagedCollections()
+                    matchingCollections = await filterAsync(managedCollections, async collection => {
+                        const collectionSpaceId = await collection.getPluginData(PLUGIN_KEYS.SPACE_ID)
+                        const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+
+                        return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
+                    })
+
+                    if (matchingCollections.length === 0) {
+                        console.warn(`Reference collection with id ${referenceCollectionId} not found`)
+                    } else {
+                        collectionId = matchingCollections[0]?.id ?? ""
+                    }
 
                     fields.push({
                         id: key,
                         name: capitalizeFirstLetter(key),
                         type: "multiCollectionReference",
+                        collectionId: collectionId,
+                        collectionsOptions: matchingCollections,
                     })
                 } else {
                     console.warn(`Unsupported reference to more than one collection: ${key}`)
