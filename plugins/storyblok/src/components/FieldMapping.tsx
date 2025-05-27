@@ -192,7 +192,9 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
-                setIsScrolled(entry.isIntersecting)
+                if (entry) {
+                    setIsScrolled(entry.isIntersecting)
+                }
             },
             {
                 root: null,

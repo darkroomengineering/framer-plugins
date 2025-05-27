@@ -60,13 +60,15 @@ export function App({
                 if (isValid) {
                     setPersonalAccessToken(previousPersonalAccessToken)
                 } else {
-                    throw new Error(
+                    console.warn(
                         `Error loading previously configured personal access token “${previousPersonalAccessToken}”. Check the logs for more details.`
                     )
+                    return
                 }
 
                 if (!previousRegion || !previousSpaceId || !previousDataSourceId) {
-                    throw new Error("Missing required fields")
+                    console.warn("Missing required fields")
+                    return
                 }
 
                 const dataSource = await getDataSource({
@@ -95,40 +97,7 @@ export function App({
         return () => {
             abortController.abort()
         }
-    }, [previousPersonalAccessToken])
-
-    // Manage Button functionality
-    // useEffect(() => {
-    //     if (!previousDataSourceId) {
-    //         return
-    //     }
-
-    //     const abortController = new AbortController()
-
-    //     setIsLoadingDataSource(true)
-    //     getDataSource(previousDataSourceId, abortController.signal)
-    //         .then(setDataSource)
-    //         .catch(error => {
-    //             if (abortController.signal.aborted) return
-
-    //             console.error(error)
-    //             framer.notify(
-    //                 `Error loading previously configured data source “${previousDataSourceId}”. Check the logs for more details.`,
-    //                 {
-    //                     variant: "error",
-    //                 }
-    //             )
-    //         })
-    //         .finally(() => {
-    //             if (abortController.signal.aborted) return
-
-    //             setIsLoadingDataSource(false)
-    //         })
-
-    //     return () => {
-    //         abortController.abort()
-    //     }
-    // }, [previousDataSourceId])
+    }, [previousPersonalAccessToken, previousRegion, previousSpaceId, previousDataSourceId])
 
     if (isLoading) {
         return (
