@@ -12,6 +12,6 @@ const lokaliseToken = await framer.getPluginData("lokalise")
 
 createRoot(root).render(
     <StrictMode>
-        <App token={lokaliseToken} />
+        <App authToken={lokaliseToken} />
     </StrictMode>
 )

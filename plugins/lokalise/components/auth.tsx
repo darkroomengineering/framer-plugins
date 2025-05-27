@@ -1,7 +1,8 @@
 import { framer } from "framer-plugin"
 import { useEffect, useRef, useState } from "react"
+import type { AuthToken } from "../lib/types"
 
-export function Auth({ onAuth }: { onAuth: (boardToken: string) => void }) {
+export function Auth({ onAuth }: { onAuth: (boardToken: AuthToken) => void }) {
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -29,7 +30,7 @@ export function Auth({ onAuth }: { onAuth: (boardToken: string) => void }) {
         try {
             setIsLoading(true)
 
-            onAuth?.(boardToken)
+            onAuth?.({ authToken: boardToken })
             framer.setPluginData("lokalise", boardToken)
             console.log("success", boardToken)
         } catch (error) {

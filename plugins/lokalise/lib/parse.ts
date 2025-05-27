@@ -1,30 +1,8 @@
 import type { LocalizationData } from "framer-plugin"
-
-// Assumed type definitions for data from Framer
-interface FramerLocale {
-  code: string // e.g., "en", "fr-FR"
-  name: string
-  isDefault?: boolean
-  id: string
-}
-
-interface FramerLocalizationString {
-  id: string
-  value: string // e.g., { "en": "Hello", "fr-FR": "Bonjour" }
-}
-
-interface FramerLocalizationGroup {
-  id: string
-  name: string // Used for prefixing keys, e.g., "common"
-  sources: FramerLocalizationString[]
-}
-
-export type LokaliseData = Record<string, Record<string, string>>
+import type {LokaliseData, ParseFramerDataForLokalise, ParseLokaliseDataForFramer, Translation} from "./types"
 
 export function parseFramerDataForLokalise(
-  baseLocale: string,
-  locales: readonly FramerLocale[],
-  groups: readonly FramerLocalizationGroup[]
+ { baseLocale, locales, groups }: ParseFramerDataForLokalise
 ): LokaliseData {
   const lokaliseDataMap: LokaliseData = {}
 
@@ -33,28 +11,25 @@ export function parseFramerDataForLokalise(
       return lokaliseDataMap
   }
 
-  // We'll create entries only for English (source) initially
-  const translationsForLocale: Record<string, string> = {}
+  const translationsForLocale: Translation = {}
   
   for (const group of groups) {
-  for (const source of group.sources) {
-      const lokaliseKey = `${group.id}:${source.id}` 
-      translationsForLocale[lokaliseKey] = source.value 
-  }
+    for (const source of group.sources) {
+        const lokaliseKey = `${group.id}:${source.id}` 
+        translationsForLocale[lokaliseKey] = source.value 
+    }
 
-  // Only add the locale to the map if it has translations
-  if (Object.keys(translationsForLocale).length > 0) {
-      lokaliseDataMap[baseLocale] = translationsForLocale
-  }
+    // Only add the locale to the map if it has translations
+    if (Object.keys(translationsForLocale).length > 0) {
+        lokaliseDataMap[baseLocale] = translationsForLocale
+    }
 }
 
   return lokaliseDataMap
 }
 
 export function parseLokaliseDataForFramer(
-  lokaliseData: Record<string, Record<string, string>>,
-  locales: readonly FramerLocale[],
-  groups: readonly FramerLocalizationGroup[]
+  { lokaliseData, locales, groups }: ParseLokaliseDataForFramer
 ): LocalizationData {
   const localizationData: LocalizationData = { valuesBySource: {} }
 
@@ -62,7 +37,7 @@ export function parseLokaliseDataForFramer(
   for (const [localeCode, translations] of Object.entries(lokaliseData)) {
     const targetLocale = locales.map((local) => ({
       ...local,
-      code: local.code.replace("-", "_")
+      code: local.code.replace("-", "_") // Difference between Framer and Lokalise
     })).find(locale => locale.code === localeCode)
 
     if (!targetLocale) continue

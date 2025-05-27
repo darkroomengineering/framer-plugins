@@ -1,104 +1,84 @@
-import type { LokaliseData } from "./parse";
+import type { HandleResponse, LokaliseKey, AuthToken, ProjectCredentials, UploadTranslations, FetchLokalise, LokaliseData, Translation } from "./types";
 
 const devMode = import.meta.env.MODE === "development"
 const baseApiUrl = devMode 
 ? "/api/lokalise-proxy" 
 : "https://api.lokalise.com/api2";
 
-interface LokaliseKey {
-  key_id: number;
-  key_name: {
-    web: string;
-    other?: string;
-  };
+
+async function fetchLokalise({endpoint, authToken, ...props}: FetchLokalise) {
+  const response = await fetch(baseApiUrl + endpoint, {
+    headers: { "Accept": "application/json", "Content-Type": "application/json", "x-api-token": authToken as string },
+    ...props,
+  })
+
+  return response;
 }
 
-const HEADERS = {
-  "Accept": "application/json",
-  "Content-Type": "application/json",
-}
-
-async function handleError(response: Response, endpoint: string) {
+async function handleResponse({response, endpoint}: HandleResponse) {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(`Lokalise API Error (${endpoint}): ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
+    const message = `${endpoint}: ${response.status} ${response.statusText}`;
+    throw new Error(message);
   }
 
   const data = await response.json();
   return data;
 }
 
-function stringToBase64(translations: LokaliseData) {
+function stringToBase64(translations: Translation) {
     const jsonString = JSON.stringify(translations);
     let base64Data;
     try {
       // Json string to UTF-8 bytes then to ascii then to base64
         base64Data = btoa(new TextEncoder().encode(jsonString).reduce((data, byte) => data + String.fromCharCode(byte), ''));
     } catch (e) {
-        console.log("Error base64 encoding translations:", e);
-        throw new Error("Failed to base64 encode translations. Check for complex Unicode characters if issues persist.");
+      const errorMessage = `Failed to base64 encode translations: ${e}`;
+      console.log(errorMessage);
+      throw new Error(errorMessage);
     }
 
     return base64Data;
 }
 
-export async function getProjects(apiKey: string) {
-  const endpoint = `${baseApiUrl}/projects`
+export async function getProjects({authToken}: AuthToken) {
+  const endpoint = 'projects'
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: { ...HEADERS, "x-api-token": apiKey },
-  })
-
-  const data = await handleError(response, "getProjects")
+  const response = await fetchLokalise({endpoint, authToken})
+  const data = await handleResponse({response, endpoint: "getProjects"})
   return data;
 }
 
-export async function getProjectLanguages(apiKey: string, projectId: string) {
-  const endpoint = `${baseApiUrl}/projects/${projectId}/languages`
+export async function getProjectLanguages({authToken, projectId}: ProjectCredentials) {
+  const endpoint = `projects/${projectId}/languages`
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: { ...HEADERS, "x-api-token": apiKey },
-  })
-
-  const data = await handleError(response, "getProjectLanguages")
+  const response = await fetchLokalise({endpoint, authToken})
+  const data = await handleResponse({response, endpoint: "getProjectLanguages"})
   return data;
 }
 
 export async function getTranslationsKeys(
-  authToken: string,
-  projectId: string,
+  {authToken, projectId}: ProjectCredentials,
 ): Promise<LokaliseKey[]> {
-  const endpoint = `${baseApiUrl}/projects/${projectId}/keys?limit=5000`
+  const endpoint = `projects/${projectId}/keys?limit=5000`
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: { ...HEADERS, "x-api-token": authToken },
-  })
-
-  const {keys} = await handleError(response, "getTranslationsKeys")
+  const response = await fetchLokalise({endpoint, authToken})
+  const {keys} = await handleResponse({response, endpoint: "getTranslationsKeys"})  
   return keys;
 }   
 
 export async function downloadAllTranslationsAsJson(
-    authToken: string,
-    projectId: string
+    {authToken, projectId}: ProjectCredentials,
 ): Promise<LokaliseData> {
-    const endpoint = `${baseApiUrl}/projects/${projectId}/translations?disable_references=1&limit=5000`;
+    const endpoint = `projects/${projectId}/translations?disable_references=1&limit=5000`
 
-    const response = await fetch(endpoint, {
-        method: "GET",
-        headers: { ...HEADERS, "x-api-token": authToken },
-    });
-
-    const {translations} = await handleError(response, `Failed to fetch all translations`)
+    const response = await fetchLokalise({endpoint, authToken})
+    const {translations} = await handleResponse({response, endpoint: "downloadAllTranslationsAsJson"})
 
     // Get all keys
-    const keys = await getTranslationsKeys(authToken, projectId)
+    const keys = await getTranslationsKeys({authToken, projectId})
 
     // Group translations by language code
-    const result: Record<string, Record<string, string>> = {};
+    const result: LokaliseData = {};
     
     for (const translation of translations) {
         const langCode = translation.language_iso // Use language_iso directly
@@ -116,31 +96,24 @@ export async function downloadAllTranslationsAsJson(
 }
 
 export async function uploadTranslations(
-    apiKey: string,
-    projectId: string,
-    langIso: string, // e.g., "en_US"
-    filename: string, // e.g., "en_US.json"
-    translations: LokaliseData // key-value translations for this language
-  ) {
+    {authToken, projectId, langIso, filename, translations}: UploadTranslations, 
+  ): Promise<UploadTranslations> {
     const base64Data = stringToBase64(translations);
-    const endpoint = `${baseApiUrl}/projects/${projectId}/files/upload`;
+    const endpoint = `projects/${projectId}/files/upload`;
   
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { ...HEADERS, "x-api-token": apiKey },
-        body: JSON.stringify({
-            data: base64Data,
+    const response = await fetchLokalise({endpoint, authToken, method: "POST", body: JSON.stringify({
+            data: base64Data, 
             filename: filename,
             lang_iso: langIso,
             tags: ["Framer"],
             // Config
             replace_modified: false,
-            detect_icu_plurals: true,
             replace_breaks: false,
+            detect_icu_plurals: true,
             skip_detect_lang_iso: true,
         }),
     });
   
-    const data = await handleError(response, "uploadSingleLanguageTranslations")
+    const data = await handleResponse({response, endpoint: "uploadSingleLanguageTranslations"})
     return data;
   }
