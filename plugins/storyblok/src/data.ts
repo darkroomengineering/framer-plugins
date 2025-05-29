@@ -6,12 +6,7 @@ import {
     type ManagedCollection,
     type ManagedCollectionItemInput,
 } from "framer-plugin"
-import {
-    findCollectionInStories,
-    getComponentFromSpaceId,
-    getStoriesFromSpaceId,
-    getStoryblokClient,
-} from "./storyblok"
+import { findBloksInStories, getComponentFromSpaceId, getStoriesFromSpaceId, getStoryblokClient } from "./storyblok"
 import type { StoryblokRegion } from "./storyblok"
 import { capitalizeFirstLetter, createUniqueSlug, filterAsync } from "./utils"
 import { richTextResolver } from "@storyblok/richtext"
@@ -97,7 +92,7 @@ export async function getDataSource({
 
     console.log({ component, stories })
 
-    const bloks = findCollectionInStories(stories, component.name)
+    const bloks = findBloksInStories(stories, component.name)
 
     const schema = component.schema
 
@@ -111,7 +106,7 @@ export async function getDataSource({
 
     const fields: ExtendedManagedCollectionFieldInput[] = [idField]
 
-    for (const [key, { type, component_whitelist }] of Object.entries(schema)) {
+    for (const [key, { type, component_whitelist, is_reference_type, filter_content_type }] of Object.entries(schema)) {
         switch (type) {
             case "bloks":
                 if (component_whitelist?.length === 1) {
@@ -188,11 +183,42 @@ export async function getDataSource({
                 })
                 break
             case "options":
-                fields.push({
-                    id: key,
-                    name: capitalizeFirstLetter(key),
-                    type: "string",
-                })
+                if (is_reference_type) {
+                    // if (filter_content_type.length === 1) {
+                    //     let collectionId = ""
+                    //     let matchingCollections: ManagedCollection[] = []
+                    //     console.log("filter_content_type", filter_content_type)
+                    //     const referenceCollectionId = filter_content_type[0]
+                    //     const managedCollections = await framer.getManagedCollections()
+                    //     matchingCollections = await filterAsync(managedCollections, async collection => {
+                    //         const collectionSpaceId = await collection.getPluginData(PLUGIN_KEYS.SPACE_ID)
+                    //         const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+                    //         return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
+                    //     })
+                    //     if (matchingCollections.length === 0) {
+                    //         console.warn(`Reference collection with id ${referenceCollectionId} not found`)
+                    //     } else {
+                    //         collectionId = matchingCollections[0]?.id ?? ""
+                    //     }
+                    //     fields.push({
+                    //         id: key,
+                    //         name: capitalizeFirstLetter(key),
+                    //         type: "multiCollectionReference",
+                    //         collectionId: collectionId,
+                    //         collectionsOptions: matchingCollections,
+                    //     })
+                    // } else {
+                    //     console.warn(`Unsupported reference to more than one collection: ${key}`)
+                    // }
+                    console.warn(`Unsupported field type: references`)
+                } else {
+                    fields.push({
+                        id: key,
+                        name: capitalizeFirstLetter(key),
+                        type: "string",
+                    })
+                }
+
                 break
             case "multilink":
                 fields.push({
@@ -250,9 +276,8 @@ export async function getDataSource({
                     case "multiCollectionReference":
                         if (Array.isArray(value)) {
                             itemData[field.id] = {
-                                value: value.map((item: { _uid: string }) => item._uid),
+                                value: value.map(item => (typeof item === "string" ? item : item._uid)),
                                 type: field.type,
-                                // collectionId: field.collectionId,
                             }
                         }
                         break

@@ -228,28 +228,28 @@ export async function getApiKeyFromSpaceId(storyblok: StoryblokClient, spaceId: 
     return response.data.api_keys as StoryblokApiKey[]
 }
 
-export function findOccurences(object: Record<string, unknown>, collectionName: string) {
+export function findBloks(object: Record<string, unknown>, collectionName: string) {
     const occurences: Record<string, unknown>[] = []
 
     for (const [key, value] of Object.entries(object)) {
         if (key === "component" && value === collectionName) {
             occurences.push(object)
         } else if (typeof value === "object" && value !== null) {
-            occurences.push(...findOccurences(value as Record<string, unknown>, collectionName))
+            occurences.push(...findBloks(value as Record<string, unknown>, collectionName))
         }
     }
 
     return occurences
 }
 
-export function findCollectionInStories(stories: StoryblokStory[], collectionName: string) {
-    const occurences = []
+export function findBloksInStories(stories: StoryblokStory[], collectionName: string) {
+    const bloks = []
 
     const contents = stories.map(story => story.content)
 
     for (const content of contents) {
-        occurences.push(...findOccurences(content, collectionName))
+        bloks.push(...findBloks(content, collectionName))
     }
 
-    return occurences
+    return bloks
 }
