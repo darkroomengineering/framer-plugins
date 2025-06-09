@@ -146,7 +146,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         disabled={isLoading || spaces.length === 0}
                     >
                         <option value="" disabled>
-                            {isLoading ? "Loading spaces..." : "Choose Space..."}
+                            {isLoading ? "Loading spaces..." : "Select..."}
                         </option>
                         {spaces.map(({ id, name }) => (
                             <option key={id} value={id}>
@@ -168,7 +168,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         disabled={isLoading || collections.length === 0}
                     >
                         <option value="" disabled>
-                            {isLoading ? "Loading Collections..." : "Choose Collection..."}
+                            {isLoading ? "Loading Collections..." : "Select..."}
                         </option>
                         {collections.map(({ id, name }) => (
                             <option key={id} value={id}>

@@ -3,13 +3,13 @@ import { useEffect, useRef } from "react"
 
 export default function Page({
     children,
-    onPreviousPage,
-    previousPage,
-    width = 360,
+    // onPreviousPage,
+    // previousPage,
+    width = 320,
 }: {
     children: React.ReactNode
-    onPreviousPage?: () => void
-    previousPage?: string
+    // onPreviousPage?: () => void
+    // previousPage?: string
     width?: number
 }) {
     const ref = useRef<HTMLDivElement>(null)
@@ -37,7 +37,8 @@ export default function Page({
     return (
         <div ref={ref}>
             <main>
-                {previousPage && (
+            <hr className="sticky-divider" />
+                {/* {previousPage && (
                     <>
                         <hr className="sticky-divider" />
                         <a onClick={() => onPreviousPage?.()} className="previous-page">
@@ -56,7 +57,7 @@ export default function Page({
                         </a>
                         <hr className="sticky-divider" />
                     </>
-                )}
+                )} */}
 
                 {children}
             </main>

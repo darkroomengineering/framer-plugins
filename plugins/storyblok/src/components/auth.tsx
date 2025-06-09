@@ -48,7 +48,7 @@ export function Auth({ onValidToken }: { onValidToken: (token: string) => void }
             <form onSubmit={handleSubmit}>
                 <label>
                     <p>
-                        Personal Access Token{" "}
+                        Access Token{" "}
                         {error && (
                             <span
                                 style={{
@@ -62,7 +62,7 @@ export function Auth({ onValidToken }: { onValidToken: (token: string) => void }
                     <input
                         ref={inputRef}
                         type="text"
-                        placeholder="token"
+                        placeholder="Token"
                         defaultValue={defaultToken ?? ""}
                         onChange={() => {
                             setError(null)

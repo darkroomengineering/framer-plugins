@@ -40,7 +40,7 @@ export function App({
 
     useEffect(() => {
         framer.showUI({
-            width: 360,
+            width: 320,
             height: 350,
         })
     }, [])
@@ -121,14 +121,16 @@ export function App({
 
     if (!dataSource) {
         return (
-            <Page previousPage="Authentication" onPreviousPage={() => setPersonalAccessToken(null)}>
+            // previousPage="Authentication" onPreviousPage={() => setPersonalAccessToken(null)}
+            <Page >
                 <SelectDataSource onSelectDataSource={setDataSource} personalAccessToken={personalAccessToken} />
             </Page>
         )
     }
 
     return (
-        <Page previousPage="Data Source" onPreviousPage={() => setDataSource(null)}>
+        // previousPage="Data Source" onPreviousPage={() => setDataSource(null)}
+        <Page >
             <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
         </Page>
     )
