@@ -28,10 +28,8 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
     const [clientsByRegion, setClientsByRegion] = useState<Record<StoryblokRegion, StoryblokClient>>(
         {} as Record<StoryblokRegion, StoryblokClient>
     )
-    // const clients = Object.values(clientsByRegion).flat()
 
     const [collections, setCollections] = useState<StoryblokComponent[]>([])
-    // const [selectedComponent, setSelectedComponent] = useState<SelectedComponent | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
@@ -92,12 +90,6 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
             setSelectedRegion(null)
         }
     }, [selectedSpaceId, spacesByRegion, clientsByRegion])
-
-    useEffect(() => {
-        console.log("selectedSpaceId", selectedSpaceId)
-        console.log("selectedCollectionId", selectedCollectionId)
-        console.log("selectedRegion", selectedRegion)
-    }, [selectedSpaceId, selectedCollectionId, selectedRegion])
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()

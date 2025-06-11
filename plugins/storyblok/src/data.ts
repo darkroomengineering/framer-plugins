@@ -74,7 +74,6 @@ export async function getDataSource({
     collectionId: string
     region: StoryblokRegion
 }): Promise<DataSource> {
-    console.log("getDataSource")
 
     const client = await getStoryblokClient(region, personalAccessToken)
 
@@ -89,9 +88,6 @@ export async function getDataSource({
     }
 
     const stories = await getStoriesFromSpaceId(client, spaceId)
-
-    console.log({ component, stories })
-
     const bloks = findBloksInStories(stories, component.name)
 
     const schema = component.schema
@@ -106,7 +102,7 @@ export async function getDataSource({
 
     const fields: ExtendedManagedCollectionFieldInput[] = [idField]
 
-    for (const [key, { type, component_whitelist, is_reference_type, filter_content_type }] of Object.entries(schema)) {
+    for (const [key, { type, component_whitelist, is_reference_type }] of Object.entries(schema)) {
         switch (type) {
             case "bloks":
                 if (component_whitelist?.length === 1) {
@@ -184,32 +180,6 @@ export async function getDataSource({
                 break
             case "options":
                 if (is_reference_type) {
-                    // if (filter_content_type.length === 1) {
-                    //     let collectionId = ""
-                    //     let matchingCollections: ManagedCollection[] = []
-                    //     console.log("filter_content_type", filter_content_type)
-                    //     const referenceCollectionId = filter_content_type[0]
-                    //     const managedCollections = await framer.getManagedCollections()
-                    //     matchingCollections = await filterAsync(managedCollections, async collection => {
-                    //         const collectionSpaceId = await collection.getPluginData(PLUGIN_KEYS.SPACE_ID)
-                    //         const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
-                    //         return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
-                    //     })
-                    //     if (matchingCollections.length === 0) {
-                    //         console.warn(`Reference collection with id ${referenceCollectionId} not found`)
-                    //     } else {
-                    //         collectionId = matchingCollections[0]?.id ?? ""
-                    //     }
-                    //     fields.push({
-                    //         id: key,
-                    //         name: capitalizeFirstLetter(key),
-                    //         type: "multiCollectionReference",
-                    //         collectionId: collectionId,
-                    //         collectionsOptions: matchingCollections,
-                    //     })
-                    // } else {
-                    //     console.warn(`Unsupported reference to more than one collection: ${key}`)
-                    // }
                     console.warn(`Unsupported field type: references`)
                 } else {
                     fields.push({
@@ -339,12 +309,6 @@ export async function getDataSource({
 
         items.push(itemData)
     }
-
-    console.log("schema", schema)
-    console.log("fields", fields)
-
-    console.log("bloks", bloks)
-    console.log("items", items)
 
     return {
         id: component.name,

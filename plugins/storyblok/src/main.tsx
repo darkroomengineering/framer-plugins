@@ -12,7 +12,7 @@ const activeCollection = await framer.getActiveManagedCollection()
 const previousDataSourceId = await activeCollection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
 const previousSlugFieldId = await activeCollection.getPluginData(PLUGIN_KEYS.SLUG_FIELD_ID)
 const previousSpaceId = await activeCollection.getPluginData(PLUGIN_KEYS.SPACE_ID)
-const previousRegion = await activeCollection.getPluginData(PLUGIN_KEYS.REGION)
+const previousRegion = (await activeCollection.getPluginData(PLUGIN_KEYS.REGION)) as StoryblokRegion | null
 
 const previousPersonalAccessToken = localStorage.getItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN)
 
@@ -20,11 +20,9 @@ const { didSync } = await syncExistingCollection(activeCollection, {
     previousDataSourceId,
     previousSlugFieldId,
     previousSpaceId,
-    previousRegion: previousRegion as StoryblokRegion,
+    previousRegion,
     previousPersonalAccessToken,
 })
-
-// const didSync = false
 
 if (didSync) {
     await framer.closePlugin("Synchronization successful", {

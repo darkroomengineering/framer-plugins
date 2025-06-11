@@ -121,16 +121,14 @@ export function App({
 
     if (!dataSource) {
         return (
-            // previousPage="Authentication" onPreviousPage={() => setPersonalAccessToken(null)}
-            <Page >
+            <Page>
                 <SelectDataSource onSelectDataSource={setDataSource} personalAccessToken={personalAccessToken} />
             </Page>
         )
     }
 
     return (
-        // previousPage="Data Source" onPreviousPage={() => setDataSource(null)}
-        <Page >
+        <Page>
             <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
         </Page>
     )

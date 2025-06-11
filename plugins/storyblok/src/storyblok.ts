@@ -1,8 +1,8 @@
 import StoryblokClient from "storyblok-js-client"
 import type { StoryblokGenericFieldType } from "storyblok-schema-types"
-// TODO: Add more regions
-// export type StoryblokRegion = "us" | "eu" | "ca" | "cn" | "ap"
-export type StoryblokRegion = "us" | "eu" | "ca" | "ap"
+
+export type StoryblokRegion = "us" | "eu" | "ca" | "ap" | "cn"
+
 export interface StoryblokSpace {
     id: number
     name: string
@@ -30,31 +30,6 @@ export interface StoryblokStory {
     content: Record<string, unknown>
 }
 
-// /**
-//  * Finds a component with the specified dataSourceId in a story's content
-//  * @param content The story's content object
-//  * @param dataSourceId The component ID to search for
-//  * @returns The found component or null if not found
-//  */
-// export function findComponentInContent(
-//     content: Record<string, unknown>,
-//     dataSourceId: string
-// ): Record<string, unknown> | null {
-//     if (content.component === dataSourceId) {
-//         return content
-//     }
-
-//     // Search in nested objects
-//     for (const value of Object.values(content)) {
-//         if (typeof value === "object" && value !== null) {
-//             const result = findComponentInContent(value as Record<string, unknown>, dataSourceId)
-//             if (result) return result
-//         }
-//     }
-
-//     return null
-// }
-
 // Retrieve multiple stories with CDA for a specific space
 export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokApiKey[]) {
     apiKeys.map(async apiKey => {
@@ -78,7 +53,6 @@ export async function getApiKeysFromSpaceId(storyblok: StoryblokClient, spaceId:
 // Get all stories for a given space and component name
 export async function getStoriesFromComponentName(
     spaceId: string,
-    componentName: string,
     apiKey: StoryblokApiKey,
     storyblok: StoryblokClient
 ) {
@@ -87,7 +61,6 @@ export async function getStoriesFromComponentName(
         const response = await storyblok.get(`cdn/spaces/${spaceId}/stories/`, {
             token: apiKey.token,
             cv: Date.now(),
-            // search_term: componentName,
         })
 
         return response.data.stories as StoryblokStory[]
@@ -98,8 +71,6 @@ export async function getStoriesFromComponentName(
 // Get all components for a given space
 export async function getComponentsFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/components/`, {})
-
-    console.log("response", response.data.components)
 
     return response.data.components as StoryblokComponent[]
 }
@@ -152,17 +123,9 @@ export async function getStoryblokSpacesAndClientsByRegion(token: string): Promi
         us: await getStoryblokClient("us", token),
         eu: await getStoryblokClient("eu", token),
         ca: await getStoryblokClient("ca", token),
-        // cn: getStoryblokClient("cn", token),
         ap: await getStoryblokClient("ap", token),
+        cn: await getStoryblokClient("cn", token),
     }
-
-    // const clients = [
-    //     { region: "us", client: getStoryblokClient("us", token) },
-    //     { region: "eu", client: getStoryblokClient("eu", token) },
-    //     { region: "ca", client: getStoryblokClient("ca", token) },
-    //     // { region: "cn", client: getStoryblokClient("cn", token) },
-    //     { region: "ap", client: getStoryblokClient("ap", token) },
-    // ] as const
 
     const spaces = await Promise.all(
         Object.entries(clientsByRegion).map(async ([region, client]) => {
@@ -172,7 +135,6 @@ export async function getStoryblokSpacesAndClientsByRegion(token: string): Promi
                 spaces,
             }
         })
-        // clients.map(async client => await getSpaces(client.client))
     )
 
     const spacesByRegion = spaces.reduce(
@@ -187,8 +149,6 @@ export async function getStoryblokSpacesAndClientsByRegion(token: string): Promi
         spacesByRegion,
         clientsByRegion,
     }
-
-    // return { spaces: spacesByRegion.map(space => space.spaces), clients: clients }
 }
 
 export async function getTokenValidity(token: string): Promise<boolean> {

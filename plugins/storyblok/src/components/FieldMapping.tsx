@@ -250,7 +250,6 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
 
     return (
         <div className="framer-hide-scrollbar mapping">
-            {/* <hr className="sticky-divider" /> */}
             <form onSubmit={handleSubmit}>
                 <label className="slug-field" htmlFor="slugField">
                     Slug Field
