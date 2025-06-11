@@ -1,7 +1,7 @@
 import StoryblokClient from "storyblok-js-client"
 import type { StoryblokGenericFieldType } from "storyblok-schema-types"
 
-export type StoryblokRegion = "us" | "eu" | "ca" | "ap" | "cn"
+export type StoryblokRegion = "us" | "eu" | "ca" | "ap" 
 
 export interface StoryblokSpace {
     id: number
@@ -87,6 +87,8 @@ export async function getSpaces(storyblok: StoryblokClient) {
 
     const spaces = response.data.spaces as StoryblokSpace[]
 
+    console.log("spaces", spaces)
+
     return spaces
 }
 
@@ -124,7 +126,6 @@ export async function getStoryblokSpacesAndClientsByRegion(token: string): Promi
         eu: await getStoryblokClient("eu", token),
         ca: await getStoryblokClient("ca", token),
         ap: await getStoryblokClient("ap", token),
-        cn: await getStoryblokClient("cn", token),
     }
 
     const spaces = await Promise.all(
