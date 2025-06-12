@@ -16,13 +16,11 @@ export interface DataSource {
     id: string
     fields: readonly ManagedCollectionFieldInput[]
     items: FieldDataInput[]
-    idField: ManagedCollectionFieldInput | null // to be used as id field
-    slugField: ManagedCollectionFieldInput | null // to be used as slug field
 }
 
 export const dataSourceOptions = [
-    { id: "articles", name: "Articles", idFieldId: "Id", slugFieldId: "Title" },
-    { id: "categories", name: "Categories", idFieldId: "Id", slugFieldId: "Title" },
+    { id: "articles", name: "Articles" },
+    { id: "categories", name: "Categories" },
 ] as const
 
 /**
@@ -41,40 +39,6 @@ export const dataSourceOptions = [
  *   ]
  * }
  */
-
-const slugs = new Map<string, number>()
-
-function slugify(text: string) {
-    let newText = text
-    newText = newText.trim()
-    newText = newText.slice(0, 60) // limit to 60 characters
-
-    if (slugs.has(newText)) {
-        const count = slugs.get(newText) ?? 0
-        slugs.set(newText, count + 1)
-        newText = `${newText} ${count + 1}`
-    } else {
-        slugs.set(newText, 0)
-    }
-
-    const slug = newText
-        .replace(/^\s+|\s+$/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9 -]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/-+/g, "-")
-    return slug
-}
-
-// Find an item in an array using an async callback: https://stackoverflow.com/questions/55601062/using-an-async-function-in-array-find
-async function findAsync<T>(arr: T[], asyncCallback: (item: T) => Promise<boolean>) {
-    const promises = arr.map(asyncCallback)
-    const results = await Promise.all(promises)
-    const index = results.findIndex(result => result)
-    return arr[index]
-}
-
 export async function getDataSource(dataSourceId: string, abortSignal?: AbortSignal): Promise<DataSource> {
     // Fetch from your data source
     const dataSourceResponse = await fetch(`/data/${dataSourceId}.json`, { signal: abortSignal })
@@ -83,24 +47,6 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
     // Map your source fields to supported field types in Framer
     const fields: ManagedCollectionFieldInput[] = []
     for (const field of dataSource.fields) {
-        if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
-            if (!field.dataSourceId) {
-                console.warn(`No data source id found for collection reference field"${field.name}".`)
-            } else {
-                const collections = await framer.getManagedCollections()
-                const collection = await findAsync(collections, async collection => {
-                    const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
-                    return dataSourceId === field.dataSourceId
-                })
-
-                if (!collection) {
-                    console.warn(`No collection found for data source "${field.dataSourceId}".`)
-                } else {
-                    field.collectionId = collection.id
-                }
-            }
-        }
-
         switch (field.type) {
             case "string":
             case "number":
@@ -109,18 +55,17 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
             case "formattedText":
             case "date":
             case "link":
-            case "collectionReference":
-            case "multiCollectionReference":
                 fields.push({
                     id: field.name,
                     name: field.name,
                     type: field.type,
-                    ...(field.collectionId && { collectionId: field.collectionId }),
                 })
                 break
             case "image":
             case "file":
             case "enum":
+            case "collectionReference":
+            case "multiCollectionReference":
                 console.warn(`Support for field type "${field.type}" is not implemented in this Plugin.`)
                 break
             default: {
@@ -131,15 +76,8 @@ export async function getDataSource(dataSourceId: string, abortSignal?: AbortSig
 
     const items = dataSource.items as FieldDataInput[]
 
-    const dataSourceOption = dataSourceOptions.find(option => option.id === dataSourceId)
-
-    const idField = fields.find(field => field.id === dataSourceOption?.idFieldId) ?? null
-    const slugField = fields.find(field => field.id === dataSourceOption?.slugFieldId) ?? null
-
     return {
         id: dataSource.id,
-        idField,
-        slugField,
         fields,
         items,
     }
@@ -177,12 +115,6 @@ export async function syncCollection(
             continue
         }
 
-        const idValue = item[dataSource.idField?.id ?? ""]
-        if (!idValue || typeof idValue.value !== "string") {
-            console.warn(`Skipping item at index ${i} because it doesn't have a valid id`)
-            continue
-        }
-
         unsyncedItems.delete(slugValue.value)
 
         const fieldData: FieldDataInput = {}
@@ -198,8 +130,8 @@ export async function syncCollection(
         }
 
         items.push({
-            id: idValue.value,
-            slug: slugify(slugValue.value),
+            id: slugValue.value,
+            slug: slugValue.value,
             draft: false,
             fieldData,
         })
@@ -241,17 +173,17 @@ export async function syncExistingCollection(
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
         if (!slugField) {
-            framer.notify(`No field matches the slug field id "${previousSlugFieldId}". Sync will not be performed.`, {
+            framer.notify(`No field matches the slug field id “${previousSlugFieldId}”. Sync will not be performed.`, {
                 variant: "error",
             })
             return { didSync: false }
         }
 
-        await syncCollection(collection, dataSource, existingFields as ManagedCollectionFieldInput[], slugField)
+        await syncCollection(collection, dataSource, existingFields, slugField)
         return { didSync: true }
     } catch (error) {
         console.error(error)
-        framer.notify(`Failed to sync collection "${previousDataSourceId}". Check browser console for more details.`, {
+        framer.notify(`Failed to sync collection “${previousDataSourceId}”. Check browser console for more details.`, {
             variant: "error",
         })
         return { didSync: false }

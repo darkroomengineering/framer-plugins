@@ -84,10 +84,8 @@ export async function getComponentFromSpaceId(storyblok: StoryblokClient, spaceI
 // Get all spaces for a given region
 export async function getSpaces(storyblok: StoryblokClient) {
     const response = await storyblok.get("spaces/", {})
-
     const spaces = response.data.spaces as StoryblokSpace[]
 
-    console.log("spaces", spaces)
 
     return spaces
 }
