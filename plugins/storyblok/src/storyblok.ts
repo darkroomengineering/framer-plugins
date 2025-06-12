@@ -173,12 +173,25 @@ export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId:
         throw new Error("No public api key found")
     }
 
-    const response = await storyblok.get(`cdn/spaces/${spaceId}/stories/`, {
-        token: publicApiKey.token,
-        cv: Date.now(),
-    })
 
-    return response.data.stories as StoryblokStory[]
+    let page = 1
+    let maxPage = 2
+    const perPage = 50 // max is 100
+    const allItems: StoryblokStory[] = []
+
+    while (page <= maxPage) {
+        const response = await storyblok.get(`cdn/spaces/${spaceId}/stories/`, {
+            cv: Date.now(),
+            token: publicApiKey.token,
+            per_page: perPage,
+            page,
+        })
+        maxPage = Math.ceil(response.total / perPage)
+        allItems.push(...response.data.stories)
+        page++
+    }
+
+    return allItems as StoryblokStory[]
 }
 
 export async function getApiKeyFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
@@ -203,12 +216,29 @@ export function findBloks(object: Record<string, unknown>, collectionName: strin
 
 export function findBloksInStories(stories: StoryblokStory[], collectionName: string) {
     const bloks = []
-
     const contents = stories.map(story => story.content)
 
     for (const content of contents) {
         bloks.push(...findBloks(content, collectionName))
     }
 
-    return bloks
+    // TODO REVIEW: check if this is needed is this a bug in storyblok?
+
+    // Storyblok returning duplicated _uids when should be unique
+    const uidCounts: { [key: string]: number } = {}
+    
+    // Process each block to ensure unique UIDs
+    const uniqueBloks = bloks.map(block => {
+        const uid = (block as { _uid: string })._uid
+        if (!uid) return block
+        
+        if (uid in uidCounts) {
+            uidCounts[uid]!++
+            return { ...block, _uid: `${uid}_${uidCounts[uid]}` }
+        }
+        uidCounts[uid] = 0
+        return block
+    })
+
+    return uniqueBloks
 }
