@@ -10,8 +10,8 @@ framer.showUI({
     resizable: false,
 })
 
-const LENIS_INFINITE_COMPONENT_URL = "https://framer.com/m/SeamlessInfinite-Ewnw.js@STKcFeAGI8EdZuHRxhZd"
-const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
+// const LENIS_INFINITE_COMPONENT_URL = "https://framer.com/m/SeamlessInfinite-Ewnw.js@STKcFeAGI8EdZuHRxhZd"
+// const INFINITE_COMPONENT_NAME = "SeamlessInfinite"
 const LENIS_COMPONENT_URL = "https://framer.com/m/Lenis-y33L.js"
 const LENIS_COMPONENT_NAME = "Lenis"
 
@@ -24,7 +24,7 @@ const addComponent = async (url: string, name: string) => {
     })
 }
 
-const infiniteScroll = () => addComponent(LENIS_INFINITE_COMPONENT_URL, INFINITE_COMPONENT_NAME)
+// const infiniteScroll = () => addComponent(LENIS_INFINITE_COMPONENT_URL, INFINITE_COMPONENT_NAME)
 const applyLenis = () => addComponent(LENIS_COMPONENT_URL, LENIS_COMPONENT_NAME)
 
 export function App() {
@@ -46,13 +46,11 @@ export function App() {
                 </div>
             </div>
             <div className="buttons-grid">
-                <button type="button" className="button-icon" onClick={applyLenis}>
+                <button type="button" className="button-icon lenis" onClick={applyLenis}>
                     <SmoothScrollIcon />
-                    Smooth
-                    <br />
-                    Scroll
+                    Smooth Scroll
                 </button>
-                <button
+                {/* <button
                     type="button"
                     className={cn("button-icon")}
                     onClick={async () => {
@@ -61,7 +59,7 @@ export function App() {
                 >
                     <InfiniteIcon />
                     Seamless Infinite
-                </button>
+                </button> */}
             </div>
             <div className="external-buttons">
                 <a

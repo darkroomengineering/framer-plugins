@@ -78,6 +78,10 @@
     color: #888888;
 }
 
+.lenis {
+    grid-column: 1 / -1;
+}
+
 a {
     text-decoration: underline;
     color: #888888;
