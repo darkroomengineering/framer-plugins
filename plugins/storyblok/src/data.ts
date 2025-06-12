@@ -74,7 +74,6 @@ export async function getDataSource({
     collectionId: string
     region: StoryblokRegion
 }): Promise<DataSource> {
-
     const client = await getStoryblokClient(region, personalAccessToken)
 
     if (!client) {
@@ -231,7 +230,7 @@ export async function getDataSource({
     }
 
     // map occurences to items
-    const items: FieldDataInput[] = []
+    let items: FieldDataInput[] = []
 
     for (const blok of bloks) {
         const itemData: FieldDataInput = {}
@@ -278,9 +277,14 @@ export async function getDataSource({
                     case "image":
                         itemData[field.id] = {
                             value:
-                                typeof value === "object" && value !== null && "filename" in value
+                                typeof value === "object" &&
+                                value !== null &&
+                                "filename" in value &&
+                                ["jpg", "jpeg", "png", "gif", "svg", "webp", "avif"].includes(
+                                    (value as { filename: string }).filename?.split(".").pop()?.toLowerCase() ?? ""
+                                )
                                     ? String(value.filename)
-                                    : "",
+                                    : null,
                             type: field.type,
                         }
                         break
@@ -309,6 +313,9 @@ export async function getDataSource({
 
         items.push(itemData)
     }
+
+    console.log("items", items)
+    console.log("fields", fields)
 
     return {
         id: component.name,
