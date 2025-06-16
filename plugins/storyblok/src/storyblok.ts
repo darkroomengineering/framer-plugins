@@ -215,30 +215,10 @@ export function findBloks(object: Record<string, unknown>, collectionName: strin
 }
 
 export function findBloksInStories(stories: StoryblokStory[], collectionName: string) {
-    const bloks = []
-    const contents = stories.map(story => story.content)
+    const bloksMap = stories
+        .flatMap(story => findBloks(story.content, collectionName))
+        .reduce((map, blok) => blok._uid ? map.set(blok._uid, blok) : map, new Map())
 
-    for (const content of contents) {
-        bloks.push(...findBloks(content, collectionName))
-    }
-
-    // TODO REVIEW: check if this is needed is this a bug in storyblok?
-
-    // Storyblok returning duplicated _uids when should be unique
-    const uidCounts: { [key: string]: number } = {}
-    
-    // Process each block to ensure unique UIDs
-    const uniqueBloks = bloks.map(block => {
-        const uid = (block as { _uid: string })._uid
-        if (!uid) return block
-        
-        if (uid in uidCounts) {
-            uidCounts[uid]!++
-            return { ...block, _uid: `${uid}_${uidCounts[uid]}` }
-        }
-        uidCounts[uid] = 0
-        return block
-    })
-
-    return uniqueBloks
+    return Array.from(bloksMap.values())
 }
+

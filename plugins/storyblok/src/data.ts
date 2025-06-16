@@ -230,7 +230,7 @@ export async function getDataSource({
     }
 
     // map occurences to items
-    let items: FieldDataInput[] = []
+    const items: FieldDataInput[] = []
 
     for (const blok of bloks) {
         const itemData: FieldDataInput = {}
@@ -314,8 +314,6 @@ export async function getDataSource({
         items.push(itemData)
     }
 
-    console.log("items", items)
-    console.log("fields", fields)
 
     return {
         id: component.name,
