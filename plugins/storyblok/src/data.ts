@@ -1,24 +1,21 @@
-// import { type StoryblokGenericFieldType } from "storyblok-schema-types"
 import {
-    type ManagedCollectionFieldInput,
     type FieldDataInput,
     framer,
     type ManagedCollection,
+    type ManagedCollectionFieldInput,
     type ManagedCollectionItemInput,
+    type ProtectedMethod,
 } from "framer-plugin"
-import { findBloksInStories, getComponentFromSpaceId, getStoriesFromSpaceId, getStoryblokClient } from "./storyblok"
 import type { StoryblokRegion } from "./storyblok"
-import { capitalizeFirstLetter, createUniqueSlug, filterAsync } from "./utils"
 import { richTextResolver } from "@storyblok/richtext"
 import type { StoryblokRichTextNode } from "@storyblok/richtext"
+import { capitalizeFirstLetter, createUniqueSlug, filterAsync } from "./utils"
 
-export const PLUGIN_KEYS = {
-    DATA_SOURCE_ID: "dataSourceId",
-    SLUG_FIELD_ID: "slugFieldId",
-    PERSONAL_ACCESS_TOKEN: "personalAccessToken",
-    SPACE_ID: "spaceId",
-    REGION: "region",
-} as const
+export const dataSourceIdPluginKey = "dataSourceId"
+export const slugFieldIdPluginKey = "slugFieldId"
+export const personalAccessToken = "personalAccessToken"
+export const spaceIdPluginKey = "spaceId"
+export const regionPluginKey = "region"
 
 // this is used in FieldMapping.tsx to display the collections options in the dropdown
 export type ExtendedManagedCollectionFieldInput = ManagedCollectionFieldInput & {
@@ -64,7 +61,7 @@ export const dataSourceOptions: DataSourceOption[] = []
 const { render } = richTextResolver()
 
 export async function getDataSource({
-    personalAccessToken,
+    accessToken,
     region,
     spaceId,
     collectionId,
@@ -74,7 +71,7 @@ export async function getDataSource({
     collectionId: string
     region: StoryblokRegion
 }): Promise<DataSource> {
-    const client = await getStoryblokClient(region, personalAccessToken)
+    const client = await getStoryblokClient(region, accessToken)
 
     if (!client) {
         throw new Error("Client not found")
@@ -111,8 +108,8 @@ export async function getDataSource({
                     const referenceCollectionId = component_whitelist?.[0]
                     const managedCollections = await framer.getManagedCollections()
                     matchingCollections = await filterAsync(managedCollections, async collection => {
-                        const collectionSpaceId = await collection.getPluginData(PLUGIN_KEYS.SPACE_ID)
-                        const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+                        const collectionSpaceId = await collection.getPluginData(spaceIdPluginKey)
+                        const dataSourceId = await collection.getPluginData(dataSourceIdPluginKey)
 
                         return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
                     })
@@ -397,10 +394,10 @@ export async function syncCollection(
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
 
-    await collection.setPluginData(PLUGIN_KEYS.DATA_SOURCE_ID, dataSource.id)
-    await collection.setPluginData(PLUGIN_KEYS.SLUG_FIELD_ID, slugField.id)
-    await collection.setPluginData(PLUGIN_KEYS.REGION, dataSource.region)
-    await collection.setPluginData(PLUGIN_KEYS.SPACE_ID, dataSource.spaceId.toString())
+    await collection.setPluginData(dataSourceIdPluginKey, dataSource.id)
+    await collection.setPluginData(slugFieldIdPluginKey, slugField.id)
+    await collection.setPluginData(regionPluginKey, dataSource.region)
+    await collection.setPluginData(spaceIdPluginKey, dataSource.spaceId.toString())
 }
 
 export async function syncExistingCollection(

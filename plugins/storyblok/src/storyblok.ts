@@ -156,11 +156,9 @@ export async function getTokenValidity(token: string): Promise<boolean> {
             Authorization: token,
         },
     })
-
     if (!response.ok) {
-        throw new Error("Invalid token")
+        return false
     }
-
     return true
 }
 

@@ -12,10 +12,10 @@ import { framer } from "framer-plugin"
 
 interface SelectDataSourceProps {
     onSelectDataSource: (dataSource: DataSource) => void
-    personalAccessToken: string
+    accessToken: string
 }
 
-export function SelectDataSource({ onSelectDataSource, personalAccessToken }: SelectDataSourceProps) {
+export function SelectDataSource({ onSelectDataSource, accessToken }: SelectDataSourceProps) {
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>()
     const [selectedRegion, setSelectedRegion] = useState<StoryblokRegion | null>(null)
     const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>()
@@ -34,7 +34,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
 
     useEffect(() => {
         async function fetchSpacesAndClients() {
-            const { spacesByRegion, clientsByRegion } = await getStoryblokSpacesAndClientsByRegion(personalAccessToken)
+            const { spacesByRegion, clientsByRegion } = await getStoryblokSpacesAndClientsByRegion(accessToken)
 
             setSpacesByRegion(spacesByRegion)
             setClientsByRegion(clientsByRegion)
@@ -46,7 +46,7 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
             setSpacesByRegion({} as Record<StoryblokRegion, StoryblokSpace[]>)
             setClientsByRegion({} as Record<StoryblokRegion, StoryblokClient>)
         }
-    }, [personalAccessToken])
+    }, [accessToken])
 
     useEffect(() => {
         async function init() {
@@ -101,9 +101,8 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
 
         try {
             setIsLoading(true)
-
             const dataSource = await getDataSource({
-                personalAccessToken,
+                accessToken,
                 region: selectedRegion,
                 spaceId: selectedSpaceId,
                 collectionId: selectedCollectionId,
@@ -123,7 +122,6 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
     return (
         <div className="framer-hide-scrollbar setup">
             <img src="/asset.jpg" alt="Greenhouse Hero" onDragStart={e => e.preventDefault()} />
-
             <form onSubmit={handleSubmit}>
                 <label>
                     <p>Space</p>
@@ -131,7 +129,6 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         id="spaces"
                         onChange={async event => {
                             const selectedSpaceId = event.target.value
-
                             setSelectedSpaceId(selectedSpaceId)
                         }}
                         value={selectedSpaceId ? String(selectedSpaceId) : ""}
@@ -153,7 +150,6 @@ export function SelectDataSource({ onSelectDataSource, personalAccessToken }: Se
                         id="collections"
                         onChange={event => {
                             const selectedCollectionId = event.target.value
-
                             setSelectedCollectionId(selectedCollectionId)
                         }}
                         value={selectedCollectionId ? String(selectedCollectionId) : ""}

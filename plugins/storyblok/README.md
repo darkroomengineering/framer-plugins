@@ -1,19 +1,7 @@
-# CMS Starter
+# StoryBlok Plugin
 
-This is a starter for building a CMS plugin for Framer.
+Plugin for syncing StoryBlok Data into the Framer CMS.
 
-Run the development server:
+**By:** @sushilzore
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-And [open in Framer](https://www.framer.com/developers/plugins/quick-start#opening-in-framer).
-
-Learn more: https://www.framer.com/developers/plugins/introduction
+![StoryBlok Image](src/assets/hero.png)

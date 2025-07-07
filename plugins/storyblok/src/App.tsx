@@ -1,11 +1,10 @@
 import "./App.css"
-
 import { framer, type ManagedCollection } from "framer-plugin"
 import { useEffect, useState } from "react"
-import { type DataSource, getDataSource, PLUGIN_KEYS } from "./data"
+import { type DataSource, getDataSource, personalAccessToken } from "./data"
 import { FieldMapping } from "./components/FieldMapping.tsx"
 import { SelectDataSource } from "./components/SelectDataSource"
-import { Auth } from "./components/auth"
+import { Auth } from "./components/Auth"
 import Page from "./page"
 import { getTokenValidity, type StoryblokRegion } from "./storyblok"
 
@@ -26,17 +25,18 @@ export function App({
     previousSpaceId,
     previousRegion,
 }: AppProps) {
-    const [personalAccessToken, setPersonalAccessToken] = useState<string | null>()
+    const [accessToken, setAccessToken] = useState<string | null>()
     const [dataSource, setDataSource] = useState<DataSource | null>(null)
     const [isLoading, setIsLoading] = useState(
         Boolean(previousDataSourceId || previousPersonalAccessToken || previousSpaceId || previousRegion)
     )
 
     useEffect(() => {
-        if (personalAccessToken) {
-            localStorage.setItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN, personalAccessToken)
+        if (accessToken) {
+            setAccessToken(accessToken)
+            localStorage.setItem(personalAccessToken, accessToken)
         }
-    }, [personalAccessToken])
+    }, [accessToken])
 
     useEffect(() => {
         framer.showUI({
@@ -58,7 +58,7 @@ export function App({
 
                 const isValid = await getTokenValidity(previousPersonalAccessToken)
                 if (isValid) {
-                    setPersonalAccessToken(previousPersonalAccessToken)
+                    setAccessToken(previousPersonalAccessToken)
                 } else {
                     console.warn(
                         `Error loading previously configured personal access token “${previousPersonalAccessToken}”. Check the logs for more details.`
@@ -112,7 +112,7 @@ export function App({
             <Page>
                 <Auth
                     onValidToken={token => {
-                        setPersonalAccessToken(token)
+                        setAccessToken(token)
                     }}
                 />
             </Page>
@@ -122,7 +122,7 @@ export function App({
     if (!dataSource) {
         return (
             <Page>
-                <SelectDataSource onSelectDataSource={setDataSource} personalAccessToken={personalAccessToken} />
+                <SelectDataSource onSelectDataSource={setDataSource} accessToken={setAccessToken} />
             </Page>
         )
     }
