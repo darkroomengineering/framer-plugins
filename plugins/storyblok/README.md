@@ -1,7 +1,7 @@
-# StoryBlok Plugin
+# Storyblok Plugin
 
-Plugin for syncing StoryBlok Data into the Framer CMS.
+Plugin for syncing Storyblok Data into the Framer CMS.
 
 **By:** @sushilzore
 
-![StoryBlok Image](src/assets/hero.png)
+![Storyblok Image](src/assets/hero.png)

@@ -1,32 +1,41 @@
 import "framer-plugin/framer.css"
 
-import { framer } from "framer-plugin"
+import {framer, ManagedCollection} from "framer-plugin"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./App.tsx"
-import { dataSourceIdPluginKey,
+import {
+    accessTokenPluginKey,
+    dataSourceIdPluginKey,
+    regionPluginKey,
     slugFieldIdPluginKey,
-    personalAccessToken,
     spaceIdPluginKey,
-    regionPluginKey,syncExistingCollection } from "./data.ts"
-import type { StoryblokRegion } from "./storyblok.ts"
+    syncExistingCollection,
+} from "./data"
+import { type StoryblokRegion } from "./storyblok"
+
+const lastUsedAccessToken = await framer.getPluginData(accessTokenPluginKey)
+const lastUsedSpaceId = await framer.getPluginData(spaceIdPluginKey)
 
 const activeCollection = await framer.getActiveManagedCollection()
 
 const previousDataSourceId = await activeCollection.getPluginData(dataSourceIdPluginKey)
 const previousSlugFieldId = await activeCollection.getPluginData(slugFieldIdPluginKey)
-const previousSpaceId = await activeCollection.getPluginData(spaceIdPluginKey)
+const previousCollectionAccessToken = await activeCollection.getPluginData(accessTokenPluginKey)
+const previousCollectionSpaceId = await activeCollection.getPluginData(spaceIdPluginKey)
 const previousRegion = (await activeCollection.getPluginData(regionPluginKey)) as StoryblokRegion | null
-const previousPersonalAccessToken = localStorage.getItem(personalAccessToken)
 
-const { didSync } = await syncExistingCollection(activeCollection, {
+const previousAccessToken = previousCollectionAccessToken ?? lastUsedAccessToken
+const previousSpaceId = previousCollectionSpaceId ?? lastUsedSpaceId
+
+const { didSync } = await syncExistingCollection(
+    activeCollection,
     previousDataSourceId,
     previousSlugFieldId,
-    previousSpaceId,
     previousRegion,
-    previousPersonalAccessToken,
-})
-
+    previousSpaceId,
+    previousAccessToken
+)
 if (didSync) {
     await framer.closePlugin("Synchronization successful", {
         variant: "success",
@@ -41,8 +50,8 @@ if (didSync) {
                 collection={activeCollection}
                 previousDataSourceId={previousDataSourceId}
                 previousSlugFieldId={previousSlugFieldId}
+                previousAccessToken={previousAccessToken}
                 previousSpaceId={previousSpaceId}
-                previousPersonalAccessToken={previousPersonalAccessToken}
                 previousRegion={previousRegion}
             />
         </StrictMode>
