@@ -1,7 +1,7 @@
 import StoryblokClient from "storyblok-js-client"
 import type { StoryblokGenericFieldType } from "storyblok-schema-types"
 
-export type StoryblokRegion = "us" | "eu" | "ca" | "ap" 
+export type StoryblokRegion = "us" | "eu" | "ca" | "ap"
 
 export interface StoryblokSpace {
     id: number
@@ -37,7 +37,6 @@ export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokA
             const response = await storyblok.get("cdn/stories/", {
                 token: apiKey.token,
             })
-
             return response.data.stories
         }
     })
@@ -46,7 +45,6 @@ export async function getStories(storyblok: StoryblokClient, apiKeys: StoryblokA
 // Get api keys for a given space
 export async function getApiKeysFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}/api_keys/`, {})
-
     return response.data.api_keys as StoryblokApiKey[]
 }
 
@@ -85,14 +83,11 @@ export async function getComponentFromSpaceId(storyblok: StoryblokClient, spaceI
 export async function getSpaces(storyblok: StoryblokClient) {
     const response = await storyblok.get("spaces/", {})
     const spaces = response.data.spaces as StoryblokSpace[]
-
-
     return spaces
 }
 
 export async function getSpaceFromId(storyblok: StoryblokClient, spaceId: string) {
     const response = await storyblok.get(`spaces/${spaceId}`, {})
-
     return response.data.space as StoryblokSpace
 }
 
@@ -100,7 +95,6 @@ export async function getStoryblokClient(region: StoryblokRegion, token: string)
     if (!token) {
         throw new Error("No token found")
     }
-
     const storyblokClient = new StoryblokClient({
         cache: {
             clear: "manual",
@@ -109,9 +103,7 @@ export async function getStoryblokClient(region: StoryblokRegion, token: string)
         oauthToken: token,
         region: region,
     })
-
     storyblokClient.flushCache()
-
     return storyblokClient
 }
 
@@ -156,12 +148,7 @@ export async function getTokenValidity(token: string): Promise<boolean> {
             Authorization: token,
         },
     })
-
-    if (!response.ok) {
-        throw new Error("Invalid token")
-    }
-
-    return true
+    return response.ok
 }
 
 export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId: string) {
@@ -172,7 +159,6 @@ export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId:
     if (!publicApiKey) {
         throw new Error("No public api key found")
     }
-
 
     let page = 1
     let maxPage = 2
@@ -217,8 +203,7 @@ export function findBloks(object: Record<string, unknown>, collectionName: strin
 export function findBloksInStories(stories: StoryblokStory[], collectionName: string) {
     const bloksMap = stories
         .flatMap(story => findBloks(story.content, collectionName))
-        .reduce((map, blok) => blok._uid ? map.set(blok._uid, blok) : map, new Map())
+        .reduce((map, blok) => (blok._uid ? map.set(blok._uid, blok) : map), new Map())
 
     return Array.from(bloksMap.values())
 }
-
