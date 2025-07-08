@@ -1,41 +1,29 @@
 import "framer-plugin/framer.css"
 
-import {framer, ManagedCollection} from "framer-plugin"
+import { framer } from "framer-plugin"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./App.tsx"
-import {
-    accessTokenPluginKey,
-    dataSourceIdPluginKey,
-    regionPluginKey,
-    slugFieldIdPluginKey,
-    spaceIdPluginKey,
-    syncExistingCollection,
-} from "./data"
-import { type StoryblokRegion } from "./storyblok"
-
-const lastUsedAccessToken = await framer.getPluginData(accessTokenPluginKey)
-const lastUsedSpaceId = await framer.getPluginData(spaceIdPluginKey)
+import { PLUGIN_KEYS, syncExistingCollection } from "./data.ts"
+import type { StoryblokRegion } from "./storyblok.ts"
 
 const activeCollection = await framer.getActiveManagedCollection()
 
-const previousDataSourceId = await activeCollection.getPluginData(dataSourceIdPluginKey)
-const previousSlugFieldId = await activeCollection.getPluginData(slugFieldIdPluginKey)
-const previousCollectionAccessToken = await activeCollection.getPluginData(accessTokenPluginKey)
-const previousCollectionSpaceId = await activeCollection.getPluginData(spaceIdPluginKey)
-const previousRegion = (await activeCollection.getPluginData(regionPluginKey)) as StoryblokRegion | null
+const previousDataSourceId = await activeCollection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+const previousSlugFieldId = await activeCollection.getPluginData(PLUGIN_KEYS.SLUG_FIELD_ID)
+const previousSpaceId = await activeCollection.getPluginData(PLUGIN_KEYS.SPACE_ID)
+const previousRegion = (await activeCollection.getPluginData(PLUGIN_KEYS.REGION)) as StoryblokRegion | null
 
-const previousAccessToken = previousCollectionAccessToken ?? lastUsedAccessToken
-const previousSpaceId = previousCollectionSpaceId ?? lastUsedSpaceId
+const previousPersonalAccessToken = localStorage.getItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN)
 
-const { didSync } = await syncExistingCollection(
-    activeCollection,
+const { didSync } = await syncExistingCollection(activeCollection, {
     previousDataSourceId,
     previousSlugFieldId,
-    previousRegion,
     previousSpaceId,
-    previousAccessToken
-)
+    previousRegion,
+    previousPersonalAccessToken,
+})
+
 if (didSync) {
     await framer.closePlugin("Synchronization successful", {
         variant: "success",
@@ -50,8 +38,8 @@ if (didSync) {
                 collection={activeCollection}
                 previousDataSourceId={previousDataSourceId}
                 previousSlugFieldId={previousSlugFieldId}
-                previousAccessToken={previousAccessToken}
                 previousSpaceId={previousSpaceId}
+                previousPersonalAccessToken={previousPersonalAccessToken}
                 previousRegion={previousRegion}
             />
         </StrictMode>

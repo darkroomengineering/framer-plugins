@@ -1,12 +1,7 @@
-import { framer, type ManagedCollection, type ManagedCollectionFieldInput } from "framer-plugin"
+import { type ManagedCollectionFieldInput, framer, type ManagedCollection } from "framer-plugin"
 import { useEffect, useRef, useState } from "react"
-import {
-    type DataSource,
-    dataSourceOptions,
-    type ExtendedManagedCollectionFieldInput,
-    mergeFieldsWithExistingFields,
-    syncCollection,
-} from "../data"
+import { type DataSource, dataSourceOptions, mergeFieldsWithExistingFields, syncCollection } from "../data"
+import { type ExtendedManagedCollectionFieldInput } from "../data"
 
 interface FieldMappingRowProps {
     field: ExtendedManagedCollectionFieldInput
@@ -126,6 +121,7 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
 
     useEffect(() => {
         const abortController = new AbortController()
+
         collection
             .getFields()
             .then(collectionFields => {

@@ -1,17 +1,19 @@
 import "./App.css"
+
 import { framer, type ManagedCollection } from "framer-plugin"
-import { useEffect, useLayoutEffect, useState } from "react"
-import { FieldMapping } from "./components/FieldMapping"
-import { Loading } from "./components/Loading"
+import { useEffect, useState } from "react"
+import { type DataSource, getDataSource, PLUGIN_KEYS } from "./data"
+import { FieldMapping } from "./components/FieldMapping.tsx"
 import { SelectDataSource } from "./components/SelectDataSource"
-import { accessTokenPluginKey, type DataSource, getDataSource, spaceIdPluginKey } from "./data"
-import { type StoryblokRegion } from "./storyblok"
+import { Auth } from "./components/auth"
+import Page from "./page"
+import { getTokenValidity, type StoryblokRegion } from "./storyblok"
 
 interface AppProps {
     collection: ManagedCollection
     previousDataSourceId: string | null
     previousSlugFieldId: string | null
-    previousAccessToken: string | null
+    previousPersonalAccessToken: string | null
     previousSpaceId: string | null
     previousRegion: StoryblokRegion | null
 }
@@ -20,77 +22,114 @@ export function App({
     collection,
     previousDataSourceId,
     previousSlugFieldId,
-    previousAccessToken,
+    previousPersonalAccessToken,
     previousSpaceId,
     previousRegion,
 }: AppProps) {
-    const [accessToken, setAccessToken] = useState<string | null>(previousAccessToken ?? "")
-    const [spaceId, setSpaceId] = useState<string | null>(previousSpaceId ?? "")
+    const [personalAccessToken, setPersonalAccessToken] = useState<string | null>()
     const [dataSource, setDataSource] = useState<DataSource | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
-
-    useLayoutEffect(() => {
-        const hasDataSourceSelected = Boolean(dataSource)
-
-        framer.showUI({
-            width: hasDataSourceSelected ? 400 : 320,
-            height: hasDataSourceSelected ? 427 : 325,
-            minHeight: hasDataSourceSelected ? 427 : undefined,
-            minWidth: hasDataSourceSelected ? 400 : undefined,
-            resizable: hasDataSourceSelected,
-        })
-    }, [dataSource])
+    const [isLoading, setIsLoading] = useState(
+        Boolean(previousDataSourceId || previousPersonalAccessToken || previousSpaceId || previousRegion)
+    )
 
     useEffect(() => {
-        if (!previousAccessToken || !previousDataSourceId || !previousSpaceId) return
-        setIsLoading(true)
-        getDataSource(previousAccessToken, previousSpaceId, previousDataSourceId, previousRegion)
-            .then(setDataSource)
-            .catch(error => {
-                console.error(`Error loading previously configured data source “${previousDataSourceId}”.`, error)
-                framer.notify(`Error loading previously configured data source “${previousDataSourceId}”.`, {
+        if (personalAccessToken) {
+            localStorage.setItem(PLUGIN_KEYS.PERSONAL_ACCESS_TOKEN, personalAccessToken)
+        }
+    }, [personalAccessToken])
+
+    useEffect(() => {
+        framer.showUI({
+            width: 320,
+            height: 350,
+        })
+    }, [])
+
+    useEffect(() => {
+        const abortController = new AbortController()
+
+        async function init() {
+            setIsLoading(true)
+
+            try {
+                if (abortController.signal.aborted) return
+
+                if (!previousPersonalAccessToken) return
+
+                const isValid = await getTokenValidity(previousPersonalAccessToken)
+                if (isValid) {
+                    setPersonalAccessToken(previousPersonalAccessToken)
+                } else {
+                    console.warn(
+                        `Error loading previously configured personal access token “${previousPersonalAccessToken}”. Check the logs for more details.`
+                    )
+                    return
+                }
+
+                if (!previousRegion || !previousSpaceId || !previousDataSourceId) {
+                    console.warn("Missing required fields")
+                    return
+                }
+
+                const dataSource = await getDataSource({
+                    personalAccessToken: previousPersonalAccessToken,
+                    region: previousRegion,
+                    spaceId: previousSpaceId,
+                    collectionId: previousDataSourceId,
+                })
+
+                setDataSource(dataSource)
+            } catch (error) {
+                if (abortController.signal.aborted) return
+                console.error(error)
+                framer.notify(error instanceof Error ? error.message : "An unknown error occurred", {
                     variant: "error",
                 })
-            })
-            .finally(() => {
-                setIsLoading(false)
-            })
-    }, [previousSpaceId, previousDataSourceId, previousAccessToken, previousRegion])
-
-    useEffect(() => {
-        if (!accessToken) return
-        if (accessToken === previousAccessToken) return
-
-        if (framer.isAllowedTo("setPluginData")) {
-            framer.setPluginData(accessTokenPluginKey, accessToken)
+            } finally {
+                if (!abortController.signal.aborted) {
+                    setIsLoading(false)
+                }
+            }
         }
-    }, [accessToken, previousAccessToken])
 
-    useEffect(() => {
-        if (!spaceId) return
-        if (spaceId === previousSpaceId) return
+        init()
 
-        if (framer.isAllowedTo("setPluginData")) {
-            framer.setPluginData(spaceIdPluginKey, spaceId)
+        return () => {
+            abortController.abort()
         }
-    }, [spaceId, previousSpaceId])
+    }, [previousPersonalAccessToken, previousRegion, previousSpaceId, previousDataSourceId])
 
     if (isLoading) {
-        return <Loading />
-    }
-
-    if (!accessToken || !dataSource) {
         return (
-            <SelectDataSource
-                previousSpaceId={previousSpaceId}
-                onSelectSpaceId={setSpaceId}
-                onSelectAccessToken={setAccessToken}
-                onSelectDataSource={setDataSource}
-                previousDataSourceId={previousDataSourceId}
-                previousAccessToken={previousAccessToken}
-            />
+            <main className="loading">
+                <div className="framer-spinner" />
+            </main>
         )
     }
 
-    return <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+    if (!personalAccessToken) {
+        return (
+            <Page>
+                <Auth
+                    onValidToken={token => {
+                        setPersonalAccessToken(token)
+                    }}
+                />
+            </Page>
+        )
+    }
+
+    if (!dataSource) {
+        return (
+            <Page>
+                <SelectDataSource onSelectDataSource={setDataSource} personalAccessToken={personalAccessToken} />
+            </Page>
+        )
+    }
+
+    return (
+        <Page>
+            <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+        </Page>
+    )
 }

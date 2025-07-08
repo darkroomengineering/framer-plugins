@@ -1,6 +1,6 @@
 {
     "id": "5T03yB",
     "name": "Storyblok",
-    "modes": ["syncManagedCollection", "configureManagedCollection"],
-    "icon": "/icon.png"
+    "modes": ["configureManagedCollection", "syncManagedCollection"],
+    "icon": "/icon.svg"
 }
