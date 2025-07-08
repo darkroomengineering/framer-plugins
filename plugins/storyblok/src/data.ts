@@ -7,8 +7,7 @@ import {
     type ManagedCollectionItemInput,
     type ProtectedMethod,
 } from "framer-plugin"
-import { PLUGIN_KEYS } from "../../storyblok_old/src/data"
-import { createUniqueSlug } from "../../storyblok_old/src/utils"
+
 import { type StoryblokField } from "./dataSources"
 import {
     findBloksInStories,
@@ -17,7 +16,8 @@ import {
     getStoryblokClient,
     type StoryblokRegion,
 } from "./storyblok"
-import { capitalizeFirstLetter, filterAsync } from "./utils"
+import { capitalizeFirstLetter, filterAsync, createUniqueSlug } from "./utils"
+import { richTextResolver } from "@storyblok/richtext"
 
 export const dataSourceIdPluginKey = "dataSourceId"
 export const slugFieldIdPluginKey = "slugFieldId"
@@ -47,6 +47,7 @@ export type DataSourceOption = {
 }
 
 export const dataSourceOptions: DataSourceOption[] = []
+const { render } = richTextResolver()
 
 export async function getDataSource(
     personalAccessToken: string | null,
@@ -94,8 +95,8 @@ export async function getDataSource(
                     const referenceCollectionId = component_whitelist?.[0]
                     const managedCollections = await framer.getManagedCollections()
                     matchingCollections = await filterAsync(managedCollections, async collection => {
-                        const collectionSpaceId = await collection.getPluginData(PLUGIN_KEYS.SPACE_ID)
-                        const dataSourceId = await collection.getPluginData(PLUGIN_KEYS.DATA_SOURCE_ID)
+                        const collectionSpaceId = await collection.getPluginData(spaceIdPluginKey)
+                        const dataSourceId = await collection.getPluginData(dataSourceIdPluginKey)
 
                         return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
                     })
