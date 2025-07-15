@@ -1,24 +1,19 @@
-import { framer, type ManagedCollection, type ManagedCollectionFieldInput } from "framer-plugin"
-import { useEffect, useRef, useState } from "react"
-import {
-    type DataSource,
-    dataSourceOptions,
-    type ExtendedManagedCollectionFieldInput,
-    mergeFieldsWithExistingFields,
-    syncCollection,
-} from "../data"
+import { framer, type ManagedCollection, useIsAllowedTo } from "framer-plugin"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { mergeFieldsWithExistingFields, syncCollection, syncMethods } from "../data"
+import { removeStoryBlokKeys, type StoryBlokDataSource, type StoryBlokField } from "../dataSources"
+import { isCollectionReference, isMissingReferenceField } from "../utils"
+import { ChevronIcon } from "./Icons"
+import { Loading } from "./Loading"
 
 interface FieldMappingRowProps {
-    field: ExtendedManagedCollectionFieldInput
+    field: StoryBlokField
     originalFieldName: string | undefined
     disabled: boolean
     onToggleDisabled: (fieldId: string) => void
     onNameChange: (fieldId: string, name: string) => void
     onCollectionChange: (fieldId: string, collectionId: string) => void
 }
-
-const isMissingReferenceField = (field: ManagedCollectionFieldInput) =>
-    (field.type === "multiCollectionReference" || field.type === "collectionReference") && !field.collectionId
 
 function FieldMappingRow({
     field,
@@ -29,39 +24,34 @@ function FieldMappingRow({
     onCollectionChange,
 }: FieldMappingRowProps) {
     const isMissingReference = isMissingReferenceField(field)
+    const isDisabled = disabled || isMissingReference
 
     return (
         <>
             <button
                 type="button"
-                className="source-field"
-                aria-disabled={disabled}
+                className={`source-field ${isMissingReference && "missing-reference"}`}
+                aria-disabled={isDisabled}
                 onClick={() => onToggleDisabled(field.id)}
                 tabIndex={0}
-                style={isMissingReference ? { cursor: "not-allowed" } : {}}
             >
-                <input type="checkbox" checked={!disabled} tabIndex={-1} readOnly />
+                <input type="checkbox" checked={!isDisabled} tabIndex={-1} readOnly />
                 <span>{originalFieldName ?? field.id}</span>
             </button>
-            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none">
-                <path
-                    fill="transparent"
-                    stroke="#999"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.5"
-                    d="m2.5 7 3-3-3-3"
-                />
-            </svg>
-            {(field.type === "multiCollectionReference" || field.type === "collectionReference") &&
-            (field.collectionsOptions?.length ?? 0) > 1 ? (
+            <ChevronIcon />
+            {isCollectionReference(field) ? (
                 <select
-                    style={{ width: "100%", opacity: disabled ? 0.5 : 1 }}
-                    disabled={disabled}
+                    className="target-field"
+                    disabled={isDisabled}
                     value={field.collectionId}
-                    onChange={e => onCollectionChange(field.id, e.target.value)}
+                    onChange={event => onCollectionChange(field.id, event.target.value)}
                 >
-                    {field.collectionsOptions?.map(collection => (
+                    {field.supportedCollections?.length === 0 && (
+                        <option value="" disabled>
+                            Missing Collection
+                        </option>
+                    )}
+                    {field.supportedCollections?.map(collection => (
                         <option key={collection.id} value={collection.id}>
                             {collection.name}
                         </option>
@@ -70,79 +60,85 @@ function FieldMappingRow({
             ) : (
                 <input
                     type="text"
-                    style={{
-                        width: "100%",
-                        opacity: disabled ? 0.5 : 1,
-                        ...(isMissingReference ? { cursor: "not-allowed" } : {}),
-                    }}
-                    disabled={disabled}
-                    placeholder={field.id}
-                    value={isMissingReference ? "Missing Collection" : field.name}
-                    onChange={event => onNameChange(field.id, event.target.value)}
+                    className="target-field"
+                    disabled={disabled} // IsDisabled doesn't make sense here since it's not a collection reference field
+                    placeholder={originalFieldName}
+                    value={field.name !== originalFieldName ? field.name : ""}
+                    onChange={event => onNameChange(field.id, event.target.value ?? originalFieldName ?? "")}
                 />
             )}
         </>
     )
 }
 
-const initialManagedCollectionFields: ManagedCollectionFieldInput[] = []
+const emptyArray: StoryBlokField[] = []
 
 interface FieldMappingProps {
+    spaceId: string
+    accessToken: string
+    collectionId: string
     collection: ManagedCollection
-    dataSource: DataSource
+    dataSource: StoryBlokDataSource
     initialSlugFieldId: string | null
 }
 
-export function FieldMapping({ collection, dataSource, initialSlugFieldId }: FieldMappingProps) {
+export function FieldMapping({
+    spaceId,
+    accessToken,
+    collectionId,
+    collection,
+    dataSource,
+    initialSlugFieldId,
+}: FieldMappingProps) {
     const [status, setStatus] = useState<"mapping-fields" | "loading-fields" | "syncing-collection">(
         initialSlugFieldId ? "loading-fields" : "mapping-fields"
     )
     const isSyncing = status === "syncing-collection"
     const isLoadingFields = status === "loading-fields"
 
-    const [possibleSlugFields] = useState(() => dataSource.fields.filter(field => field.type === "string"))
-
-    const [selectedSlugField, setSelectedSlugField] = useState<ManagedCollectionFieldInput | null>(
-        possibleSlugFields.find(field => field.id === initialSlugFieldId) ??
-            dataSource.slugField ??
-            possibleSlugFields[0] ??
-            null
+    const possibleSlugFields = useMemo(
+        () => dataSource.fields.filter(field => field.type === "string" && field.canBeUsedAsSlug),
+        [dataSource]
     )
 
-    const [fields, setFields] = useState(initialManagedCollectionFields)
+    const [selectedSlugField, setSelectedSlugField] = useState<StoryBlokField | null>(
+        possibleSlugFields.find(field => field.id === initialSlugFieldId) ?? possibleSlugFields[0] ?? null
+    )
+
+    const [fields, setFields] = useState<StoryBlokField[]>(emptyArray)
     const [ignoredFieldIds, setIgnoredFieldIds] = useState(() => {
         const initialFieldIds = new Set()
 
         for (const field of dataSource.fields) {
-            if (isMissingReferenceField(field)) {
-                initialFieldIds.add(field.id)
-            }
+            if (!isMissingReferenceField(field)) continue
+
+            initialFieldIds.add(field.id)
         }
 
         return initialFieldIds
     })
 
-    const dataSourceName = dataSourceOptions.find(option => option.id === dataSource.id)?.name ?? dataSource.id
-
     useEffect(() => {
         const abortController = new AbortController()
+
         collection
             .getFields()
-            .then(collectionFields => {
+            .then(async collectionFields => {
                 if (abortController.signal.aborted) return
 
-                setFields(
-                    mergeFieldsWithExistingFields(dataSource.fields, collectionFields as ManagedCollectionFieldInput[])
-                )
+                setStatus("mapping-fields")
+                setFields(mergeFieldsWithExistingFields(dataSource.fields, collectionFields))
 
                 const existingFieldIds = new Set(collectionFields.map(field => field.id))
-                const ignoredFields = dataSource.fields.filter(sourceField => !existingFieldIds.has(sourceField.id))
 
                 if (initialSlugFieldId) {
-                    setIgnoredFieldIds(new Set(ignoredFields.map(field => field.id)))
+                    const ignoredIds = new Set<string>()
+                    for (const sourceField of dataSource.fields) {
+                        if (existingFieldIds.has(sourceField.id)) continue
+                        ignoredIds.add(sourceField.id)
+                    }
+                    setIgnoredFieldIds(ignoredIds)
                 }
-
-                setStatus("mapping-fields")
             })
             .catch(error => {
                 if (!abortController.signal.aborted) {
@@ -156,27 +152,25 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
         }
     }, [initialSlugFieldId, dataSource, collection])
 
-    const changeFieldName = (fieldId: string, name: string) => {
-        setFields(prevFields => {
-            const updatedFields = prevFields.map(field => {
+    const changeFieldName = useCallback((fieldId: string, name: string) => {
+        setFields(prevFields =>
+            prevFields.map(field => {
                 if (field.id !== fieldId) return field
                 return { ...field, name }
             })
-            return updatedFields
-        })
-    }
+        )
+    }, [])
 
-    const changeCollectionId = (fieldId: string, collectionId: string) => {
-        setFields(prevFields => {
-            const updatedFields = prevFields.map(field => {
-                if (field.id !== fieldId) return field
+    const changeCollectionId = useCallback((fieldId: string, collectionId: string) => {
+        setFields(prevFields =>
+            prevFields.map(field => {
+                if (field.id !== fieldId || !isCollectionReference(field)) return field
                 return { ...field, collectionId }
             })
-            return updatedFields
-        })
-    }
+        )
+    }, [])
 
-    const toggleFieldDisabledState = (fieldId: string) => {
+    const toggleFieldDisabledState = useCallback((fieldId: string) => {
         setIgnoredFieldIds(previousIgnoredFieldIds => {
             const updatedIgnoredFieldIds = new Set(previousIgnoredFieldIds)
 
@@ -188,33 +182,9 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
 
             return updatedIgnoredFieldIds
         })
-    }
+    }, [])
 
-    const triggerRef = useRef<HTMLDivElement>(null)
-    const [isScrolled, setIsScrolled] = useState(false)
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry) {
-                    setIsScrolled(entry.isIntersecting)
-                }
-            },
-            {
-                root: null,
-                rootMargin: "0px",
-                threshold: 0,
-            }
-        )
-
-        if (triggerRef.current) {
-            observer.observe(triggerRef.current)
-        }
-
-        return () => {
-            observer.disconnect()
-        }
-    }, [fields])
+    const isAllowedToManage = useIsAllowedTo("ManagedCollection.setFields", ...syncMethods)
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -230,9 +200,18 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
         try {
             setStatus("syncing-collection")
 
-            const fieldsToSync = fields.filter(field => !ignoredFieldIds.has(field.id))
+            const fieldsToSync: StoryBlokField[] = []
 
-            await syncCollection(collection, dataSource, fieldsToSync, selectedSlugField)
+            for (const field of fields) {
+                if (ignoredFieldIds.has(field.id) || isMissingReferenceField(field)) continue
+                fieldsToSync.push({
+                    ...field,
+                    name: field.name.trim() || field.id,
+                })
+            }
+
+            await collection.setFields(removeStoryBlokKeys(fieldsToSync))
+            await syncCollection(spaceId, accessToken, collection, dataSource, fieldsToSync, selectedSlugField)
             await framer.closePlugin("Synchronization successful", { variant: "success" })
         } catch (error) {
             console.error(error)
@@ -245,15 +224,11 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
     }
 
     if (isLoadingFields) {
-        return (
-            <main className="loading">
-                <div className="framer-spinner" />
-            </main>
-        )
+        return <Loading />
     }
 
     return (
-        <div className="framer-hide-scrollbar mapping">
+        <main className="framer-hide-scrollbar mapping">
             <form onSubmit={handleSubmit}>
                 <label className="slug-field" htmlFor="slugField">
                     Slug Field
@@ -296,22 +271,25 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
                             onCollectionChange={changeCollectionId}
                         />
                     ))}
-                    <div ref={triggerRef} style={{ position: "absolute", bottom: "-50px", left: 0, right: 0 }}></div>
                 </div>
 
-                <footer className={isScrolled ? "scrolled" : ""}>
+                <footer>
                     <hr className="sticky-top" />
-                    <button disabled={isSyncing} tabIndex={0}>
+                    <button
+                        disabled={isSyncing || !isAllowedToManage}
+                        tabIndex={0}
+                        title={!isAllowedToManage ? "Insufficient permissions" : undefined}
+                    >
                         {isSyncing ? (
                             <div className="framer-spinner" />
                         ) : (
                             <span>
-                                Import <span style={{ textTransform: "capitalize" }}>{dataSourceName}</span>
+                                Import <span style={{ textTransform: "capitalize" }}>{dataSource.name}</span>
                             </span>
                         )}
                     </button>
                 </footer>
             </form>
-        </div>
+        </main>
     )
 }

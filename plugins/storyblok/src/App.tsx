@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useState } from "react"
 import { FieldMapping } from "./components/FieldMapping"
 import { Loading } from "./components/Loading"
 import { SelectDataSource } from "./components/SelectDataSource"
-import { accessTokenPluginKey, type DataSource, getDataSource, spaceIdPluginKey } from "./data"
+import { accessTokenPluginKey, getDataSource, spaceIdPluginKey } from "./data"
+import type { StoryBlokDataSource } from "./dataSources"
 import { type StoryblokRegion } from "./storyblok"
 
 interface AppProps {
@@ -26,7 +27,7 @@ export function App({
 }: AppProps) {
     const [accessToken, setAccessToken] = useState<string | null>(previousAccessToken ?? "")
     const [spaceId, setSpaceId] = useState<string | null>(previousSpaceId ?? "")
-    const [dataSource, setDataSource] = useState<DataSource | null>(null)
+    const [dataSource, setDataSource] = useState<StoryBlokDataSource | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
     useLayoutEffect(() => {
@@ -44,7 +45,7 @@ export function App({
     useEffect(() => {
         if (!previousAccessToken || !previousDataSourceId || !previousSpaceId) return
         setIsLoading(true)
-        getDataSource(previousAccessToken, previousSpaceId, previousDataSourceId, previousRegion)
+        getDataSource(previousAccessToken, previousSpaceId, previousDataSourceId)
             .then(setDataSource)
             .catch(error => {
                 console.error(`Error loading previously configured data source “${previousDataSourceId}”.`, error)
@@ -92,5 +93,14 @@ export function App({
         )
     }
 
-    return <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+    return (
+        <FieldMapping
+            spaceId={spaceId}
+            accessToken={accessToken}
+            collectionId={previousDataSourceId}
+            collection={collection}
+            dataSource={dataSource}
+            initialSlugFieldId={previousSlugFieldId}
+        />
+    )
 }
