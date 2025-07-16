@@ -2,8 +2,7 @@ import { framer, useIsAllowedTo } from "framer-plugin"
 import { useCallback, useEffect, useState } from "react"
 import StoryblokClient from "storyblok-js-client"
 import hero from "../assets/hero.png"
-import { getDataSource, syncMethods } from "../data"
-import type { StoryBlokDataSource as DataSource } from "../dataSources"
+import { accessTokenPluginKey, type DataSource, getDataSource, syncMethods } from "../data"
 import {
     getComponentsFromSpaceId,
     getStoryblokSpacesAndClientsByRegion,
@@ -54,6 +53,9 @@ export function SelectDataSource({
             getTokenValidity(token)
                 .then(isValid => {
                     if (isValid) {
+                        framer.notify("Access Token Is Valid. Loading Spaces...", {
+                            variant: "success",
+                        })
                         getStoryblokSpacesAndClientsByRegion(token)
                             .then(spacesClientCollection => {
                                 setSpacesByRegion(spacesClientCollection.spacesByRegion)
@@ -118,6 +120,7 @@ export function SelectDataSource({
                             getComponentsFromSpaceId(clientCollection[selectedClientId], spaceIdValue)
                                 .then(componentsCollection => {
                                     setCollections(componentsCollection)
+                                    console.log(selectedDataSourceId)
                                 })
                                 .catch(error => {
                                     framer.notify(
@@ -144,7 +147,7 @@ export function SelectDataSource({
 
             setIsLoading(true)
 
-            getDataSource(accessToken, selectedSpaceId, selectedDataSourceId)
+            getDataSource(accessToken, selectedSpaceId, selectedDataSourceId, selectedRegion)
                 .then(dataSource => {
                     onSelectSpaceId(selectedSpaceId ?? "")
                     onSelectDataSource(dataSource ?? "")
@@ -225,13 +228,11 @@ export function SelectDataSource({
                         <option value="" disabled>
                             Choose Source…
                         </option>
-                        {collections.map(({ name, display_name }) =>
-                            display_name ? (
-                                <option key={name} value={display_name}>
-                                    {display_name}({name})
-                                </option>
-                            ) : null
-                        )}
+                        {collections.map(({ id, name }) => (
+                            <option key={id} value={id}>
+                                {name}
+                            </option>
+                        ))}
                     </select>
                 </label>
                 <button disabled={isButtonDisabled}>{isLoading ? <div className="framer-spinner" /> : "Next"}</button>

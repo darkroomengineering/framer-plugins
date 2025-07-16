@@ -1,3 +1,4 @@
+import type { StoryblokRichTextNode } from "@storyblok/richtext"
 import {
     type FieldDataInput,
     framer,
@@ -6,9 +7,17 @@ import {
     type ManagedCollectionItemInput,
     type ProtectedMethod,
 } from "framer-plugin"
-import { isStoryBlokItemField } from "./api-types"
-import { dataSources, type StoryBlokDataSource, type StoryBlokField } from "./dataSources"
-import { assertNever, decodeHtml, isCollectionReference } from "./utils"
+
+import { type StoryblokField } from "./dataSources"
+import {
+    findBloksInStories,
+    getComponentFromSpaceId,
+    getStoriesFromSpaceId,
+    getStoryblokClient,
+    type StoryblokRegion,
+} from "./storyblok"
+import { capitalizeFirstLetter, filterAsync, createUniqueSlug } from "./utils"
+import { richTextResolver } from "@storyblok/richtext"
 
 export const dataSourceIdPluginKey = "dataSourceId"
 export const slugFieldIdPluginKey = "slugFieldId"
@@ -16,78 +25,294 @@ export const accessTokenPluginKey = "accessToken"
 export const spaceIdPluginKey = "spaceId"
 export const regionPluginKey = "region"
 
-function replaceSupportedCollections(
-    dataSource: StoryBlokDataSource,
-    fieldToCollectionsMap: Map<string, ManagedCollection[]>
-): StoryBlokDataSource {
-    const fields = dataSource.fields.map(field => {
-        if (!isCollectionReference(field)) return field
-
-        const matchingCollections = fieldToCollectionsMap.get(field.id)
-
-        return {
-            ...field,
-            collectionId: matchingCollections?.[0]?.id ?? "",
-            supportedCollections:
-                matchingCollections?.map(collection => ({
-                    id: collection.id,
-                    name: collection.name,
-                })) ?? [],
-        }
-    })
-
-    return { ...dataSource, fields }
+export type ExtendedManagedCollectionFieldInput = ManagedCollectionFieldInput & {
+    collectionsOptions?: ManagedCollection[]
 }
+
+export interface DataSource {
+    id: string
+    fields: readonly ExtendedManagedCollectionFieldInput[]
+    items: FieldDataInput[]
+    idField: ManagedCollectionFieldInput
+    slugField: ManagedCollectionFieldInput | null
+    region: StoryblokRegion
+    spaceId: string
+}
+
+export type DataSourceOption = {
+    id: string
+    name: string
+    idFieldId?: string
+    slugFieldId?: string
+}
+
+export const dataSourceOptions: DataSourceOption[] = []
+const { render } = richTextResolver()
 
 export async function getDataSource(
     personalAccessToken: string | null,
     spaceId: string | null,
-    collectionId: string | null
-): Promise<StoryBlokDataSource> {
-    if (!spaceId || !personalAccessToken || !collectionId) {
+    collectionId: string | null,
+    region: StoryblokRegion | null
+): Promise<DataSource> {
+    if (!region || !spaceId || !personalAccessToken || !collectionId) {
         throw new Error("Required information is missing")
     }
-    const dataSource = dataSources.find(option => option.id === collectionId)
-    if (!dataSource) {
-        throw new Error(`No data source found for id "${collectionId}".`)
+    const client = await getStoryblokClient(region, personalAccessToken)
+
+    if (!client) {
+        throw new Error("Client not found")
     }
 
-    const fieldToCollectionsMap = new Map<string, ManagedCollection[]>()
-    const boardCollections: ManagedCollection[] = []
+    const component = await getComponentFromSpaceId(client, spaceId, collectionId)
 
-    const managedCollections = await framer.getManagedCollections()
-    for (const collection of managedCollections) {
-        const collectionBoardToken = await collection.getPluginData(accessTokenPluginKey)
-        if (collectionBoardToken !== personalAccessToken) {
-            continue
+    if (!component) {
+        throw new Error(`Component with id ${collectionId} not found`)
+    }
+
+    const stories = await getStoriesFromSpaceId(client, spaceId)
+    const bloks = findBloksInStories(stories, component.name)
+
+    const schema = component.schema
+
+    // map schema to fields
+
+    const idField: ManagedCollectionFieldInput = {
+        id: "_uid",
+        name: "ID",
+        type: "string",
+    }
+
+    const fields: ExtendedManagedCollectionFieldInput[] = [idField]
+
+    for (const [key, { type, component_whitelist, is_reference_type }] of Object.entries(schema)) {
+        switch (type) {
+            case "bloks":
+                if (component_whitelist?.length === 1) {
+                    let collectionId = ""
+                    let matchingCollections: ManagedCollection[] = []
+
+                    const referenceCollectionId = component_whitelist?.[0]
+                    const managedCollections = await framer.getManagedCollections()
+                    matchingCollections = await filterAsync(managedCollections, async collection => {
+                        const collectionSpaceId = await collection.getPluginData(spaceIdPluginKey)
+                        const dataSourceId = await collection.getPluginData(dataSourceIdPluginKey)
+
+                        return dataSourceId === referenceCollectionId && collectionSpaceId === spaceId
+                    })
+
+                    if (matchingCollections.length === 0) {
+                        console.warn(`Reference collection with id ${referenceCollectionId} not found`)
+                    } else {
+                        collectionId = matchingCollections[0]?.id ?? ""
+                    }
+
+                    fields.push({
+                        id: key,
+                        name: capitalizeFirstLetter(key),
+                        type: "multiCollectionReference",
+                        collectionId: collectionId,
+                        collectionsOptions: matchingCollections,
+                    })
+                } else {
+                    console.warn(`Unsupported reference to more than one collection: ${key}`)
+                }
+
+                break
+            case "text":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "textarea":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "boolean":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "boolean",
+                })
+                break
+            case "number":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "number",
+                })
+                break
+            case "asset":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "image",
+                })
+                break
+            case "option":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "options":
+                if (is_reference_type) {
+                    console.warn(`Unsupported field type: references`)
+                } else {
+                    fields.push({
+                        id: key,
+                        name: capitalizeFirstLetter(key),
+                        type: "string",
+                    })
+                }
+
+                break
+            case "multilink":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "link",
+                })
+                break
+            case "references":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "markdown":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "string",
+                })
+                break
+            case "datetime":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "date",
+                })
+                break
+            case "richtext":
+                fields.push({
+                    id: key,
+                    name: capitalizeFirstLetter(key),
+                    type: "formattedText",
+                })
+                break
+            default:
+                console.warn(`Unsupported field type: ${type}`)
         }
-
-        boardCollections.push(collection)
     }
 
-    if (boardCollections.length > 0) {
-        for (const field of dataSource.fields) {
-            if (!isCollectionReference(field)) continue
+    // map occurences to items
+    const items: FieldDataInput[] = []
 
-            const matchingCollections: ManagedCollection[] = []
-            for (const collection of boardCollections) {
-                const collectionDataSourceId = await collection.getPluginData(dataSourceIdPluginKey)
-                if (collectionDataSourceId !== field.dataSourceId) continue
+    for (const blok of bloks) {
+        const itemData: FieldDataInput = {}
 
-                matchingCollections.push(collection)
+        for (const [fieldName, value] of Object.entries(blok)) {
+            const field = fields.find(field => field.id === fieldName)
+
+            if (!field) {
+                console.warn(`Field with id ${fieldName} not found`)
+            } else {
+                switch (field.type) {
+                    case "multiCollectionReference":
+                        if (Array.isArray(value)) {
+                            itemData[field.id] = {
+                                value: value.map(item => (typeof item === "string" ? item : item._uid)),
+                                type: field.type,
+                            }
+                        }
+                        break
+                    case "string":
+                        itemData[field.id] = {
+                            value: Array.isArray(value) ? value.join(", ") : String(value),
+                            type: field.type,
+                        }
+                        break
+                    case "boolean":
+                        itemData[field.id] = {
+                            value: Boolean(value),
+                            type: field.type,
+                        }
+                        break
+                    case "number":
+                        itemData[field.id] = {
+                            value: Number(value),
+                            type: field.type,
+                        }
+                        break
+                    case "date":
+                        itemData[field.id] = {
+                            value: typeof value === "string" ? new Date(value).toISOString() : new Date().toISOString(),
+                            type: field.type,
+                        }
+                        break
+                    case "image":
+                        itemData[field.id] = {
+                            value:
+                                typeof value === "object" &&
+                                value !== null &&
+                                "filename" in value &&
+                                ["jpg", "jpeg", "png", "gif", "svg", "webp", "avif"].includes(
+                                    (value as { filename: string }).filename?.split(".").pop()?.toLowerCase() ?? ""
+                                )
+                                    ? String(value.filename)
+                                    : null,
+                            type: field.type,
+                        }
+                        break
+                    case "link":
+                        itemData[field.id] = {
+                            value:
+                                typeof value === "object" && value !== null && "url" in value ? String(value.url) : "",
+                            type: field.type,
+                        }
+                        break
+                    case "formattedText":
+                        itemData[field.id] = {
+                            value:
+                                value && typeof value === "object" && "type" in value && "content" in value
+                                    ? String(render(value as StoryblokRichTextNode))
+                                    : "",
+                            type: field.type,
+                        }
+                        break
+
+                    default:
+                        console.warn(`Unsupported field type: ${field.type}`)
+                }
             }
-
-            fieldToCollectionsMap.set(field.id, matchingCollections)
         }
+
+        items.push(itemData)
     }
 
-    return replaceSupportedCollections(dataSource, fieldToCollectionsMap)
+    return {
+        id: component.name,
+        fields,
+        items,
+        idField,
+        slugField: null,
+        region,
+        spaceId,
+    }
 }
 
 export function mergeFieldsWithExistingFields(
-    sourceFields: readonly StoryBlokField[],
+    sourceFields: readonly StoryblokField[],
     existingFields: readonly ManagedCollectionFieldInput[]
-): StoryBlokField[] {
+): StoryblokField[] {
     const existingFieldsMap = new Map(existingFields.map(field => [field.id, field]))
 
     return sourceFields.map(sourceField => {
@@ -99,155 +324,69 @@ export function mergeFieldsWithExistingFields(
     })
 }
 
-async function getItems(
-    dataSource: StoryBlokDataSource,
-    fieldsToSync: readonly ManagedCollectionFieldInput[],
-    { accessToken, slugFieldId, spaceId }: { accessToken: string; spaceId: string }
-): Promise<ManagedCollectionItemInput[]> {
+export async function syncCollection(
+    collection: ManagedCollection,
+    dataSource: DataSource,
+    fields: readonly ManagedCollectionFieldInput[],
+    slugField: ManagedCollectionFieldInput
+) {
+    const sanitizedFields = fields.map(field => ({
+        ...field,
+        name: field.name.trim() || field.id,
+    }))
+
     const items: ManagedCollectionItemInput[] = []
+    const unsyncedItems = new Set(await collection.getItemIds())
 
-    const dataItems = await dataSource.fetch(accessToken, spaceId)
+    const existingSlugs = new Map<string, number>()
 
-    const itemIdBySlug: Map<string, string> = new Map()
-    const idField = fieldsToSync[0]
-    if (!idField) {
-        throw new Error("No ID field found in data source.")
-    }
+    for (let i = 0; i < dataSource.items.length; i++) {
+        const item = dataSource.items[i]
+        if (!item) throw new Error("Logic error")
 
-    for (const item of dataItems) {
-        if (!isStoryBlokItemField(slugFieldId, item)) {
-            throw new Error(`No slug field found in data source.`)
-        }
-
-        const id = String(item.id)
-        const slug = String(item[slugFieldId]).trim()
-
-        if (!itemIdBySlug.has(slug)) {
-            itemIdBySlug.set(slug, id)
+        const slugValue = item[slugField.id]
+        if (!slugValue || typeof slugValue.value !== "string") {
+            console.warn(`Skipping item at index ${i} because it doesn't have a valid slug`)
             continue
         }
 
-        const uniqueSlug = `${slug} ${id}`
-        itemIdBySlug.set(uniqueSlug, id)
-    }
-
-    const slugByItemId: Map<string, string> = new Map()
-    for (const [slug, itemId] of itemIdBySlug.entries()) {
-        slugByItemId.set(itemId, slug)
-    }
-
-    for (const item of dataItems) {
-        const id = String(item.id)
-        const slug = slugByItemId.get(id)
-        if (!slug) {
+        const idValue = item[dataSource.idField?.id ?? ""]
+        if (!idValue || typeof idValue.value !== "string") {
+            console.warn(`Skipping item at index ${i} because it doesn't have a valid id`)
             continue
         }
+
+        unsyncedItems.delete(slugValue.value)
 
         const fieldData: FieldDataInput = {}
-        for (const [fieldName, rawValue] of Object.entries(item)) {
-            const isFieldIgnored = !fieldsToSync.find(field => field.id === fieldName)
-            const field = dataSource.fields.find(field => field.id === fieldName)
+        for (const [fieldName, value] of Object.entries(item)) {
+            const field = sanitizedFields.find(field => field.id === fieldName)
 
-            if (!field || isFieldIgnored) {
-                continue
-            }
+            // Field is in the data but skipped based on selected fields.
+            if (!field) continue
 
-            const value = field.getValue ? field.getValue(rawValue) : rawValue
-
-            switch (field.type) {
-                case "string":
-                    fieldData[field.id] = {
-                        value: value ? String(value) : "",
-                        type: "string",
-                    }
-                    break
-                case "number":
-                    fieldData[field.id] = { value: Number(value), type: "number" }
-                    break
-                case "boolean":
-                    fieldData[field.id] = { value: Boolean(value), type: "boolean" }
-                    break
-                case "formattedText":
-                    fieldData[field.id] = {
-                        value: decodeHtml(value ? String(value) : ""),
-                        type: "formattedText",
-                    }
-                    break
-                case "color":
-                case "date":
-                case "link":
-                    fieldData[field.id] = {
-                        value: value ? String(value) : null,
-                        type: field.type,
-                    }
-                    break
-                case "multiCollectionReference": {
-                    const ids: string[] = []
-                    if (Array.isArray(value)) {
-                        ids.push(...value.map(item => String(item))) // this works only in StoryBlok API, make sure to update this if we change the API
-                    }
-
-                    fieldData[field.id] = {
-                        value: ids,
-                        type: "multiCollectionReference",
-                    }
-                    break
-                }
-                case "collectionReference": {
-                    if (typeof value !== "object" || value == null || !("id" in value)) {
-                        continue
-                    }
-
-                    fieldData[field.id] = {
-                        value: String(value.id),
-                        type: "collectionReference",
-                    }
-                    break
-                }
-                case "image":
-                case "file":
-                case "enum":
-                    throw new Error(`${field.type} field is not supported.`)
-                default:
-                    assertNever(field)
-            }
+            // For details on expected field value, see:
+            // https://www.framer.com/developers/plugins/cms#collections
+            fieldData[field.id] = value
         }
 
         items.push({
-            id,
-            slug,
+            id: idValue.value,
+            slug: createUniqueSlug(slugValue.value, existingSlugs),
             draft: false,
             fieldData,
         })
     }
 
-    return items
-}
-export async function syncCollection(
-    spaceId: string,
-    accessToken: string,
-    collection: ManagedCollection,
-    dataSource: StoryBlokDataSource,
-    fields: readonly ManagedCollectionFieldInput[],
-    slugField: ManagedCollectionFieldInput
-): Promise<void> {
-    const existingItemsIds = await collection.getItemIds()
-    const items = await getItems(dataSource, fields, {
-        accessToken,
-        slugFieldId: slugField.id,
-        spaceId: spaceId,
-    })
-    const itemIds = new Set(items.map(item => item.id))
-    const unsyncedItemsIds = existingItemsIds.filter(existingItemId => !itemIds.has(existingItemId))
-
-    await collection.removeItems(unsyncedItemsIds)
+    await collection.setFields(sanitizedFields)
+    await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
-    await collection.setPluginData(accessTokenPluginKey, accessToken)
-    await collection.setPluginData(spaceIdPluginKey, spaceId)
+
     await collection.setPluginData(dataSourceIdPluginKey, dataSource.id)
     await collection.setPluginData(slugFieldIdPluginKey, slugField.id)
+    await collection.setPluginData(regionPluginKey, dataSource.region)
+    await collection.setPluginData(spaceIdPluginKey, dataSource.spaceId.toString())
 }
-
 export const syncMethods = [
     "ManagedCollection.removeItems",
     "ManagedCollection.addItems",
@@ -258,10 +397,17 @@ export async function syncExistingCollection(
     collection: ManagedCollection,
     previousDataSourceId: string | null,
     previousSlugFieldId: string | null,
+    previousRegion: string | null,
     previousSpaceId: string | null,
-    previousAccessToken: string | null
+    previousPersonalAccessToken: string | null
 ): Promise<{ didSync: boolean }> {
-    if (!previousSpaceId || !previousDataSourceId || !previousAccessToken) {
+    if (
+        !previousDataSourceId ||
+        !previousSlugFieldId ||
+        !previousRegion ||
+        !previousSpaceId ||
+        !previousPersonalAccessToken
+    ) {
         return { didSync: false }
     }
 
@@ -269,30 +415,64 @@ export async function syncExistingCollection(
         return { didSync: false }
     }
 
-    if (!framer.isAllowedTo(...syncMethods)) {
-        framer.closePlugin("You are not allowed to sync this collection.", {
-            variant: "error",
-        })
-        return { didSync: false }
-    }
-
     try {
-        const dataSource = await getDataSource(previousAccessToken, previousSpaceId, previousDataSourceId)
+        const dataSource = await getDataSource(
+            previousPersonalAccessToken,
+            previousSpaceId,
+            previousDataSourceId,
+            previousRegion as StoryblokRegion
+        )
+
         const existingFields = await collection.getFields()
 
         const slugField = dataSource.fields.find(field => field.id === previousSlugFieldId)
         if (!slugField) {
-            framer.notify(`No field matches the slug field id “${previousSlugFieldId}”. Sync will not be performed.`, {
+            framer.notify(`No field matches the slug field id "${previousSlugFieldId}". Sync will not be performed.`, {
                 variant: "error",
             })
             return { didSync: false }
         }
 
-        await syncCollection(previousSpaceId, previousAccessToken, collection, dataSource, existingFields, slugField)
+        const fields: ManagedCollectionFieldInput[] = []
+        for (const field of existingFields) {
+            if (field.type === "multiCollectionReference" || field.type === "collectionReference") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    collectionId: field.collectionId,
+                })
+            } else if (field.type === "enum") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    cases: field.cases.map(c => ({
+                        id: c.id,
+                        name: c.name,
+                    })),
+                })
+            } else if (field.type === "file") {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                    allowedFileTypes: field.allowedFileTypes,
+                })
+            } else {
+                fields.push({
+                    id: field.id,
+                    name: field.name,
+                    type: field.type,
+                })
+            }
+        }
+
+        await syncCollection(collection, dataSource, fields, slugField)
         return { didSync: true }
     } catch (error) {
         console.error(error)
-        framer.notify(`Failed to sync collection “${previousDataSourceId}”. Check browser console for more details.`, {
+        framer.notify(`Failed to sync collection "${previousDataSourceId}". Check browser console for more details.`, {
             variant: "error",
         })
         return { didSync: false }

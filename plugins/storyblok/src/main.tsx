@@ -1,6 +1,6 @@
 import "framer-plugin/framer.css"
 
-import { framer, ManagedCollection } from "framer-plugin"
+import {framer, ManagedCollection} from "framer-plugin"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./App.tsx"
@@ -32,6 +32,7 @@ const { didSync } = await syncExistingCollection(
     activeCollection,
     previousDataSourceId,
     previousSlugFieldId,
+    previousRegion,
     previousSpaceId,
     previousAccessToken
 )

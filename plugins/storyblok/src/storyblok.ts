@@ -14,7 +14,6 @@ export interface StoryblokSpace {
 export interface StoryblokComponent {
     id: number
     name: string
-    display_name: string
     schema: StoryblokGenericFieldType
 }
 
