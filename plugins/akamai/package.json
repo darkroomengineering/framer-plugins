@@ -1,0 +1,26 @@
+{
+    "name": "akamai",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "run g:dev",
+        "build": "run g:build",
+        "check-biome": "run g:check-biome",
+        "check-eslint": "run g:check-eslint",
+        "preview": "run g:preview",
+        "pack": "framer-plugin-tools pack",
+        "check-typescript": "run g:check-typescript"
+    },
+    "dependencies": {
+        "@notionhq/client": "^3.1.3",
+        "framer-plugin": "^3.4.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.18",
+        "@types/react-dom": "^18.3.5",
+        "framer-plugin-tools": "^1.0.0"
+    }
+}
