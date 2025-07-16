@@ -30,10 +30,11 @@ export type ExtendedManagedCollectionFieldInput = ManagedCollectionFieldInput & 
 
 export interface DataSource {
     id: string
-    fields: readonly StoryblokField[]
+    fields: readonly ExtendedManagedCollectionFieldInput[]
     items: FieldDataInput[]
     idField: ManagedCollectionFieldInput
     slugField: ManagedCollectionFieldInput | null
+    region: StoryblokRegion | null
     spaceId: string
 }
 
@@ -53,7 +54,7 @@ export async function getDataSource(
     collectionId: string | null,
     region: StoryblokRegion | null
 ): Promise<DataSource> {
-    if (!region || !spaceId || !personalAccessToken || !collectionId) {
+    if (!spaceId || !personalAccessToken || !collectionId) {
         throw new Error("Required information is missing")
     }
     const client = await getStoryblokClient(region, personalAccessToken)
@@ -375,7 +376,7 @@ export async function syncCollection(
             fieldData,
         })
     }
-    
+
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
     await collection.setPluginData(dataSourceIdPluginKey, dataSource.id)
