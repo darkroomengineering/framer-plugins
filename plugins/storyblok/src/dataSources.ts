@@ -15,3 +15,17 @@ export type StoryblokField = ManagedCollectionFieldInput &
               supportedCollections?: { id: string; name: string }[]
           }
     )
+
+/**
+ * Remove StoryBlok-specific keys from the fields. This is used to ensure that the fields are compatible with Framer API.
+ *
+ * @param fields - The fields to remove the keys from.
+ * @returns The fields with the keys removed.
+ */
+export function removeStoryblokKeys(fields: StoryblokField[]): ManagedCollectionFieldInput[] {
+    return fields.map(originalField => {
+        const field = { ...originalField }
+        delete field.getValue
+        return field
+    })
+}

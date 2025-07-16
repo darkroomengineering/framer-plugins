@@ -1,4 +1,5 @@
 import type { StoryblokRichTextNode } from "@storyblok/richtext"
+import { richTextResolver } from "@storyblok/richtext"
 import {
     type FieldDataInput,
     framer,
@@ -7,7 +8,6 @@ import {
     type ManagedCollectionItemInput,
     type ProtectedMethod,
 } from "framer-plugin"
-
 import { type StoryblokField } from "./dataSources"
 import {
     findBloksInStories,
@@ -16,8 +16,7 @@ import {
     getStoryblokClient,
     type StoryblokRegion,
 } from "./storyblok"
-import { capitalizeFirstLetter, filterAsync, createUniqueSlug } from "./utils"
-import { richTextResolver } from "@storyblok/richtext"
+import { capitalizeFirstLetter, createUniqueSlug, filterAsync } from "./utils"
 
 export const dataSourceIdPluginKey = "dataSourceId"
 export const slugFieldIdPluginKey = "slugFieldId"

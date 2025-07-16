@@ -225,10 +225,10 @@ a {
     color: currentColor;
 }
 
-.hide{
-    display:none;
+.hide {
+    display: none;
 }
 
-.show{
+.show {
     display: flex;
 }

@@ -53,9 +53,6 @@ export function SelectDataSource({
             getTokenValidity(token)
                 .then(isValid => {
                     if (isValid) {
-                        framer.notify("Access Token Is Valid. Loading Spaces...", {
-                            variant: "success",
-                        })
                         getStoryblokSpacesAndClientsByRegion(token)
                             .then(spacesClientCollection => {
                                 setSpacesByRegion(spacesClientCollection.spacesByRegion)
