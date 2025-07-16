@@ -117,7 +117,6 @@ export function SelectDataSource({
                             getComponentsFromSpaceId(clientCollection[selectedClientId], spaceIdValue)
                                 .then(componentsCollection => {
                                     setCollections(componentsCollection)
-                                    console.log(selectedDataSourceId)
                                 })
                                 .catch(error => {
                                     framer.notify(

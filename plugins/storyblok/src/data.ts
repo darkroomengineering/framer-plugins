@@ -30,11 +30,10 @@ export type ExtendedManagedCollectionFieldInput = ManagedCollectionFieldInput & 
 
 export interface DataSource {
     id: string
-    fields: readonly ExtendedManagedCollectionFieldInput[]
+    fields: readonly StoryblokField[]
     items: FieldDataInput[]
     idField: ManagedCollectionFieldInput
     slugField: ManagedCollectionFieldInput | null
-    region: StoryblokRegion
     spaceId: string
 }
 
@@ -328,7 +327,7 @@ export async function syncCollection(
     dataSource: DataSource,
     fields: readonly ManagedCollectionFieldInput[],
     slugField: ManagedCollectionFieldInput
-) {
+): Promise<void> {
     const sanitizedFields = fields.map(field => ({
         ...field,
         name: field.name.trim() || field.id,
@@ -380,10 +379,8 @@ export async function syncCollection(
     await collection.setFields(sanitizedFields)
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
-
     await collection.setPluginData(dataSourceIdPluginKey, dataSource.id)
     await collection.setPluginData(slugFieldIdPluginKey, slugField.id)
-    await collection.setPluginData(regionPluginKey, dataSource.region)
     await collection.setPluginData(spaceIdPluginKey, dataSource.spaceId.toString())
 }
 export const syncMethods = [
@@ -413,7 +410,12 @@ export async function syncExistingCollection(
     if (framer.mode !== "syncManagedCollection" || !previousSlugFieldId) {
         return { didSync: false }
     }
-
+    if (!framer.isAllowedTo(...syncMethods)) {
+        framer.closePlugin("You are not allowed to sync this collection.", {
+            variant: "error",
+        })
+        return { didSync: false }
+    }
     try {
         const dataSource = await getDataSource(
             previousPersonalAccessToken,
@@ -466,7 +468,6 @@ export async function syncExistingCollection(
                 })
             }
         }
-
         await syncCollection(collection, dataSource, fields, slugField)
         return { didSync: true }
     } catch (error) {

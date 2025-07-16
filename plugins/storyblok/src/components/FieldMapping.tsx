@@ -80,6 +80,7 @@ interface FieldMappingProps {
     dataSource: DataSource
     initialSlugFieldId: string | null
 }
+
 export function FieldMapping({ collection, dataSource, initialSlugFieldId }: FieldMappingProps) {
     const [status, setStatus] = useState<"mapping-fields" | "loading-fields" | "syncing-collection">(
         initialSlugFieldId ? "loading-fields" : "mapping-fields"
@@ -105,7 +106,6 @@ export function FieldMapping({ collection, dataSource, initialSlugFieldId }: Fie
 
         return initialFieldIds
     })
-    console.log(dataSourceOptions)
     const dataSourceName = dataSourceOptions.find(option => option.id === dataSource.id)?.name ?? dataSource.id
     useEffect(() => {
         const abortController = new AbortController()
