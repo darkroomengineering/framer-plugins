@@ -375,8 +375,7 @@ export async function syncCollection(
             fieldData,
         })
     }
-
-    await collection.setFields(sanitizedFields)
+    
     await collection.removeItems(Array.from(unsyncedItems))
     await collection.addItems(items)
     await collection.setPluginData(dataSourceIdPluginKey, dataSource.id)
