@@ -1,6 +1,6 @@
 {
     "id": "ak4mai",
     "name": "Akamai",
-    "modes": ["configureManagedCollection", "syncManagedCollection"],
+    "modes": ["canvas"],
     "icon": "/icon.svg"
 }

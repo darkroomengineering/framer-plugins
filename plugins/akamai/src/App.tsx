@@ -8,20 +8,21 @@ framer.showUI({
     height: 200,
 })
 
+function usePublishInfo() {
+    const [publishInfo, setPublishInfo] = useState<PublishInfo>()
+
+    useEffect(() => {
+        return framer.subscribeToPublishInfo(setPublishInfo)
+    }, [])
+
+    return publishInfo
+}
+
 export function App() {
     const [isValidProjectUrl, setIsValidProjectUrl] = useState<boolean>(false)
 
-    function usePublishInfo() {
-        const [publishInfo, setPublishInfo] = useState<PublishInfo>()
-
-        useEffect(() => {
-            return framer.subscribeToPublishInfo(setPublishInfo)
-        }, [])
-
-        return publishInfo
-    }
-
     const publishInfo = usePublishInfo()
+    console.log(publishInfo)
 
     useEffect(() => {
         const validateProjectUrl = () => {
