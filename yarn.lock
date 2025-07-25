@@ -2223,6 +2223,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@storyblok/richtext@npm:^3.2.0":
+  version: 3.5.0
+  resolution: "@storyblok/richtext@npm:3.5.0"
+  checksum: 10/4d88760ab10949c1899f985a7962eeb3eec3c0140fc335489fccf1d06416092d7b01a3ab4d1437309f7eda4aa13bd62a920aa802b1969a1b86b75f1211bb4164
+  languageName: node
+  linkType: hard
+
 "@sveltejs/acorn-typescript@npm:^1.0.5":
   version: 1.0.5
   resolution: "@sveltejs/acorn-typescript@npm:1.0.5"
@@ -6521,6 +6528,35 @@ __metadata:
   checksum: 10/7024c1a6e39b3f18aa8f1c8290e884fe91b0f9ca5a6c6d410544daad54de0ba664db879afe16412e187c6c292fd60b937f047ee44292e5c2af2dcc6d8e1a9b48
   languageName: node
   linkType: hard
+
+"storyblok-js-client@npm:^6.10.11":
+  version: 6.11.0
+  resolution: "storyblok-js-client@npm:6.11.0"
+  checksum: 10/b2e27a18fa917390fcf9702655213fe42c2ee5f4c7646cf61da0108007b62d0631aac38e0b7b418236b6b462de2fca962379f68c8097ff0f74fac1bd298fe4f6
+  languageName: node
+  linkType: hard
+
+"storyblok-schema-types@npm:1.3.2":
+  version: 1.3.2
+  resolution: "storyblok-schema-types@npm:1.3.2"
+  checksum: 10/ddf0887a4f54f49526958652e709b521e1e9c94e2ce00ab62428152bf31febd6b5f393380856c768cf3f6334fb6fede8ca218893d040260c2cb182c09efb85d1
+  languageName: node
+  linkType: hard
+
+"storyblok@workspace:plugins/storyblok":
+  version: 0.0.0-use.local
+  resolution: "storyblok@workspace:plugins/storyblok"
+  dependencies:
+    "@storyblok/richtext": "npm:^3.2.0"
+    "@types/react": "npm:^18.3.23"
+    "@types/react-dom": "npm:^18.3.7"
+    framer-plugin: "npm:^3.3.2"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    storyblok-js-client: "npm:^6.10.11"
+    storyblok-schema-types: "npm:1.3.2"
+  languageName: unknown
+  linkType: soft
 
 "string-width-cjs@npm:string-width@^4.2.0, string-width@npm:^4.1.0, string-width@npm:^4.2.0, string-width@npm:^4.2.3":
   version: 4.2.3
