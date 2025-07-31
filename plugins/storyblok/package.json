@@ -14,10 +14,11 @@
     },
     "dependencies": {
         "@storyblok/richtext": "^3.2.0",
-        "framer-plugin": "^3.3.2",
+        "framer-plugin": "^3.5.2",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
-        "storyblok-js-client": "^6.10.11"
+        "storyblok-js-client": "^6.10.11",
+        "valibot": "^1.1.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.23",

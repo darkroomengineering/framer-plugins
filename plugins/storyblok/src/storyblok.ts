@@ -177,7 +177,7 @@ export async function getStoriesFromSpaceId(storyblok: StoryblokClient, spaceId:
         page++
     }
 
-    return allItems as StoryblokStory[]
+    return allItems
 }
 
 export async function getApiKeyFromSpaceId(storyblok: StoryblokClient, spaceId: string) {

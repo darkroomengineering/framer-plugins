@@ -64,7 +64,7 @@ export function SelectDataSource({
                                     spacesClientCollection.clientsByRegion
                                 )
                             })
-                            .catch(error => {
+                            .catch((error: unknown) => {
                                 console.error(error)
                                 framer.notify(error instanceof Error ? error.message : "An unknown error occurred", {
                                     variant: "error",
@@ -77,7 +77,7 @@ export function SelectDataSource({
                         })
                     }
                 })
-                .catch(error => {
+                .catch((error: unknown) => {
                     console.error(error)
                     framer.notify(error instanceof Error ? error.message : "An unknown error occurred", {
                         variant: "error",
@@ -118,7 +118,7 @@ export function SelectDataSource({
                                 .then(componentsCollection => {
                                     setCollections(componentsCollection)
                                 })
-                                .catch(error => {
+                                .catch((error: unknown) => {
                                     framer.notify(
                                         error instanceof Error ? error.message : "An unknown error occurred",
                                         {
@@ -149,7 +149,7 @@ export function SelectDataSource({
                     onSelectDataSource(dataSource ?? "")
                     onSelectAccessToken(accessToken ?? "")
                 })
-                .catch(error => {
+                .catch((error: unknown) => {
                     console.error(error)
                     framer.notify(error instanceof Error ? error.message : "An unknown error occurred", {
                         variant: "error",
@@ -192,7 +192,9 @@ export function SelectDataSource({
                         required
                         placeholder="Enter Access Token…"
                         value={!accessToken ? "" : accessToken}
-                        onChange={event => validateAccessToken(event.target.value)}
+                        onChange={event => {
+                            validateAccessToken(event.target.value)
+                        }}
                     />
                 </label>
                 <label className={!isValidAccessToken ? "hide" : "show"}>
@@ -200,7 +202,9 @@ export function SelectDataSource({
                     <select
                         id="spaceId"
                         required
-                        onChange={event => selectSpace(event.target.value, spacesByRegion, clientsByRegion)}
+                        onChange={event => {
+                            selectSpace(event.target.value, spacesByRegion, clientsByRegion)
+                        }}
                         value={selectedSpaceId ? selectedSpaceId : ""}
                         disabled={!isValidAccessToken}
                     >
@@ -217,7 +221,9 @@ export function SelectDataSource({
                     <select
                         id="collection"
                         required
-                        onChange={event => (selectedSpaceId ? setSelectedDataSourceId(event.target.value) : "")}
+                        onChange={event => {
+                            selectedSpaceId ? setSelectedDataSourceId(event.target.value) : ""
+                        }}
                         value={selectedDataSourceId}
                         disabled={!isValidAccessToken || !selectedSpaceId}
                     >

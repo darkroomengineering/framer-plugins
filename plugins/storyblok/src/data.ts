@@ -8,6 +8,7 @@ import {
     type ManagedCollectionItemInput,
     type ProtectedMethod,
 } from "framer-plugin"
+import * as v from "valibot"
 import { type StoryblokField } from "./dataSources"
 import {
     findBloksInStories,
@@ -38,7 +39,7 @@ export interface DataSource {
     spaceId: string
 }
 
-export type DataSourceOption = {
+export interface DataSourceOption {
     id: string
     name: string
     idFieldId?: string
@@ -48,6 +49,9 @@ export type DataSourceOption = {
 export const dataSourceOptions: DataSourceOption[] = []
 
 const { render } = richTextResolver()
+
+const StringifiableSchema = v.union([v.string(), v.number(), v.boolean()])
+const ArrayWithIdsSchema = v.array(v.object({ id: v.number() }))
 
 export async function getDataSource(
     personalAccessToken: string | null,
@@ -227,16 +231,18 @@ export async function getDataSource(
             } else {
                 switch (field.type) {
                     case "multiCollectionReference":
-                        if (Array.isArray(value)) {
-                            itemData[field.id] = {
-                                value: value.map(item => (typeof item === "string" ? item : item._uid)),
-                                type: field.type,
-                            }
+                        const ids: string[] = []
+                        if (v.is(ArrayWithIdsSchema, value)) {
+                            ids.push(...value.map(item => String(item.id)))
+                        }
+                        itemData[field.id] = {
+                            value: ids,
+                            type: field.type,
                         }
                         break
                     case "string":
                         itemData[field.id] = {
-                            value: Array.isArray(value) ? value.join(", ") : String(value),
+                            value: v.is(StringifiableSchema, value) ? String(value) : "",
                             type: field.type,
                         }
                         break
@@ -274,8 +280,7 @@ export async function getDataSource(
                         break
                     case "link":
                         itemData[field.id] = {
-                            value:
-                                typeof value === "object" && value !== null && "url" in value ? String(value.url) : "",
+                            value: v.is(StringifiableSchema, value) ? String(value) : null,
                             type: field.type,
                         }
                         break
@@ -284,7 +289,9 @@ export async function getDataSource(
                             value:
                                 value && typeof value === "object" && "type" in value && "content" in value
                                     ? String(render(value as StoryblokRichTextNode))
-                                    : "",
+                                    : v.is(StringifiableSchema, value)
+                                      ? String(value)
+                                      : "",
                             type: field.type,
                         }
                         break
@@ -297,7 +304,6 @@ export async function getDataSource(
 
         items.push(itemData)
     }
-
     return {
         id: component.name,
         fields,

@@ -37,7 +37,7 @@ const { didSync } = await syncExistingCollection(
     previousAccessToken
 )
 if (didSync) {
-    await framer.closePlugin("Synchronization successful", {
+    framer.closePlugin("Synchronization successful", {
         variant: "success",
     })
 } else {

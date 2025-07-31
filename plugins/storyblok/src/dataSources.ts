@@ -26,8 +26,7 @@ export type StoryblokField = ManagedCollectionFieldInput &
  */
 export function removeStoryblokKeys(fields: StoryblokField[]): ManagedCollectionFieldInput[] {
     return fields.map(originalField => {
-        const field = { ...originalField }
-        delete field.getValue
+        const { getValue, ...field } = originalField
         return field
     })
 }
