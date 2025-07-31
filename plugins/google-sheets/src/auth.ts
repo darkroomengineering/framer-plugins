@@ -1,6 +1,9 @@
+import { framer } from "framer-plugin"
+import { showLoginUI } from "./ui"
+
 interface Tokens {
     access_token: string
-    refresh_token: string
+    refresh_token?: string
     expires_in: number
     scope: string
     token_type: "Bearer"
@@ -30,17 +33,21 @@ class Auth {
     constructor() {
         this.AUTH_URI = location.hostname.includes("localhost")
             ? "https://localhost:8787"
-            : "https://oauth.fetch.tools/google-sheets-plugin"
+            : "https://oauth.framer.wtf/google-sheets-plugin"
     }
 
-    logout() {
+    async logout() {
         this.tokens.clear()
+        await framer.setMenu([])
+        await showLoginUI()
+        framer.notify("Logged out of your Google account", { variant: "success" })
+        window.location.reload()
     }
 
     async refreshTokens() {
         try {
             const tokens = this.tokens.get()
-            if (!tokens) {
+            if (!tokens?.refreshToken) {
                 throw new Error("Refresh attempted with no stored tokens.")
             }
 

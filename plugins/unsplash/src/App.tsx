@@ -23,13 +23,15 @@ const minWindowWidth = mode === "canvas" ? 260 : 600
 const minColumnWidth = 100
 const columnGap = 5
 const sidePadding = 15 * 2
+const resizable = framer.mode === "canvas"
 
 void framer.showUI({
     position: "top right",
     width: minWindowWidth,
     minWidth: minWindowWidth,
+    maxWidth: 750,
     minHeight: 400,
-    resizable: false,
+    resizable,
 })
 
 export function App() {
@@ -48,6 +50,7 @@ export function App() {
                 await framer.addImage({
                     image: randomPhoto.urls.full,
                     name: randomPhoto.alt_description ?? randomPhoto.description ?? "Unsplash Image",
+                    altText: randomPhoto.alt_description ?? randomPhoto.description ?? undefined,
                 })
                 return
             }
@@ -55,6 +58,7 @@ export function App() {
             await framer.setImage({
                 image: randomPhoto.urls.full,
                 name: randomPhoto.alt_description ?? randomPhoto.description ?? "Unsplash Image",
+                altText: randomPhoto.alt_description ?? randomPhoto.description ?? undefined,
             })
 
             await framer.closePlugin()
@@ -71,7 +75,9 @@ export function App() {
                     className="w-full pl-[33px] pr-8"
                     autoFocus
                     style={{ paddingLeft: 30 }}
-                    onChange={e => setQuery(e.target.value)}
+                    onChange={e => {
+                        setQuery(e.target.value)
+                    }}
                 />
                 <div className="flex items-center justify-center absolute left-[25px] top-0 bottom-0 text-tertiary">
                     <SearchIcon />
@@ -104,18 +110,41 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
 
     const { data, fetchNextPage, isFetchingNextPage, isLoading, hasNextPage } = useListPhotosInfinite(query)
     const scrollRef = useRef<HTMLDivElement>(null)
-    const [windowSize, setWindowSize] = useState(window.innerWidth)
-    const deferredWindowSize = useDeferredValue(windowSize)
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth)
+    const deferredWindowWidth = useDeferredValue(windowWidth)
+    const previousWindowHeightRef = useRef(window.innerHeight)
+
+    const handleScroll = useCallback(() => {
+        if (isFetchingNextPage || isLoading) return
+
+        const scrollElement = scrollRef.current
+        if (!scrollElement) return
+
+        const distanceToEnd = scrollElement.scrollHeight - (scrollElement.clientHeight + scrollElement.scrollTop)
+
+        if (distanceToEnd > 150) return
+
+        void fetchNextPage()
+    }, [isFetchingNextPage, isLoading, fetchNextPage])
 
     useEffect(() => {
         const handleResize = () => {
-            setWindowSize(window.innerWidth)
+            setWindowWidth(window.innerWidth)
+
+            // Handle vertical window resize
+            if (window.innerHeight > previousWindowHeightRef.current) {
+                handleScroll()
+            }
+
+            previousWindowHeightRef.current = window.innerHeight
         }
 
         handleResize()
         window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
+        return () => {
+            window.removeEventListener("resize", handleResize)
+        }
+    }, [handleScroll])
 
     const addPhotoMutation = useMutation({
         mutationFn: async (photo: UnsplashPhoto) => {
@@ -125,6 +154,7 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
                 await framer.addImage({
                     image: photo.urls.full,
                     name: photo.alt_description ?? photo.description ?? "Unsplash Image",
+                    altText: photo.alt_description ?? photo.description ?? undefined,
                 })
 
                 return
@@ -133,6 +163,7 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
             await framer.setImage({
                 image: photo.urls.full,
                 name: photo.alt_description ?? photo.description ?? "Unsplash Image",
+                altText: photo.alt_description ?? photo.description ?? undefined,
             })
 
             await framer.closePlugin()
@@ -153,14 +184,14 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
 
         if (isScrollable || !hasNextPage) return
 
-        fetchNextPage()
-    }, [data, hasNextPage, fetchNextPage, deferredWindowSize, isLoading])
+        void fetchNextPage()
+    }, [data, hasNextPage, fetchNextPage, deferredWindowWidth, isLoading])
 
     const [photosColumns, columnWidth] = useMemo(() => {
-        const adjustedWindowSize = deferredWindowSize - sidePadding
-        const columnCount = Math.max(1, Math.floor((adjustedWindowSize + columnGap) / (minColumnWidth + columnGap)))
-        const columnWidth = (adjustedWindowSize - (columnCount - 1) * columnGap) / columnCount
-        const heightPerColumn = Array(columnCount).fill(0)
+        const adjustedWindowWidth = deferredWindowWidth - sidePadding
+        const columnCount = Math.max(1, Math.floor((adjustedWindowWidth + columnGap) / (minColumnWidth + columnGap)))
+        const columnWidth = (adjustedWindowWidth - (columnCount - 1) * columnGap) / columnCount
+        const heightPerColumn = Array<number>(columnCount).fill(0)
 
         const seenPhotos = new Set<PhotoId>()
         const columns = Array.from({ length: columnCount }, (): UnsplashPhoto[] => [])
@@ -181,24 +212,12 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
                 if (minColumnIndex === -1) continue
 
                 columns[minColumnIndex]?.push(photo)
+                if (heightPerColumn[minColumnIndex] === undefined) throw new Error("Logic error")
                 heightPerColumn[minColumnIndex] += itemHeight
             }
         }
         return [columns, columnWidth] as const
-    }, [data, deferredWindowSize])
-
-    const handleScroll = () => {
-        if (isFetchingNextPage || isLoading) return
-
-        const scrollElement = scrollRef.current
-        if (!scrollElement) return
-
-        const distanceToEnd = scrollElement.scrollHeight - (scrollElement.clientHeight + scrollElement.scrollTop)
-
-        if (distanceToEnd > 150) return
-
-        fetchNextPage()
-    }
+    }, [data, deferredWindowWidth])
 
     const isLoadingVisible = isLoading || isFetchingNextPage
 
@@ -226,7 +245,7 @@ const PhotosList = memo(function PhotosList({ query }: { query: string }) {
                                     photo={photo}
                                     height={heightForPhoto(photo, columnWidth)}
                                     width={columnWidth}
-                                    loading={addPhotoMutation.isPending && addPhotoMutation.variables?.id === photo.id}
+                                    loading={addPhotoMutation.isPending && addPhotoMutation.variables.id === photo.id}
                                     onSelect={addPhotoMutation.mutate}
                                     isAllowedToUpsertImage={isAllowedToUpsertImage}
                                 />
@@ -257,37 +276,43 @@ const GridItem = memo(function GridItem({
     onSelect,
     isAllowedToUpsertImage,
 }: GridItemProps) {
-    const handleClick = useCallback(() => onSelect(photo), [onSelect, photo])
+    const handleClick = useCallback(() => {
+        onSelect(photo)
+    }, [onSelect, photo])
     const [imageLoaded, setImageLoaded] = useState(false)
 
     useEffect(() => {
         const img = new Image()
         img.src = photo.urls.thumb
-        img.onload = () => setImageLoaded(true)
+        img.onload = () => {
+            setImageLoaded(true)
+        }
     }, [photo.urls.thumb])
 
     return (
         <div key={photo.id} className="flex flex-col gap-[5px]">
-            <button
-                onClick={() => {
-                    if (!isAllowedToUpsertImage) return
-                    handleClick()
+            <Draggable
+                data={{
+                    type: "image",
+                    image: photo.urls.full,
+                    previewImage: photo.urls.thumb,
+                    name: photo.alt_description ?? photo.description ?? "Unsplash Image",
+                    altText: photo.alt_description ?? photo.description ?? undefined,
                 }}
-                className="cursor-pointer bg-cover relative rounded-lg"
-                style={{
-                    height,
-                    backgroundImage: `url(${photo.urls.thumb})`,
-                    backgroundColor: photo.color,
-                }}
-                disabled={!isAllowedToUpsertImage}
-                title={isAllowedToUpsertImage ? undefined : "Insufficient permissions"}
             >
-                <Draggable
-                    data={{
-                        type: "image",
-                        image: photo.urls.full,
-                        previewImage: photo.urls.thumb,
+                <button
+                    onClick={() => {
+                        if (!isAllowedToUpsertImage) return
+                        handleClick()
                     }}
+                    className="cursor-pointer bg-cover relative rounded-lg"
+                    style={{
+                        height,
+                        backgroundImage: `url(${photo.urls.thumb})`,
+                        backgroundColor: photo.color,
+                    }}
+                    disabled={!isAllowedToUpsertImage}
+                    title={isAllowedToUpsertImage ? undefined : "Insufficient permissions"}
                 >
                     <>
                         <div
@@ -304,8 +329,8 @@ const GridItem = memo(function GridItem({
                             </div>
                         )}
                     </>
-                </Draggable>
-            </button>
+                </button>
+            </Draggable>
             <a
                 target="_blank"
                 href={photo.user.links.html}
@@ -327,7 +352,9 @@ const AppErrorBoundary = ({ children }: PropsWithChildren<object>) => (
                         Could not load photos
                         <button
                             className="bg-transparent hover:bg-transparent active:bg-transparent text-blue-600 outline-hidden"
-                            onClick={() => resetErrorBoundary()}
+                            onClick={() => {
+                                resetErrorBoundary()
+                            }}
                         >
                             Try again
                         </button>
@@ -351,8 +378,8 @@ const Placeholders = ({ index }: { index: number }) => {
     const heights = placeholderHeights[index % placeholderHeights.length]
     if (!heights) return null
 
-    return heights.map(height => (
-        <div key={height} className="animate-pulse">
+    return heights.map((height, heightIndex) => (
+        <div key={heightIndex} className="animate-pulse">
             <div className="bg-secondary rounded-md" style={{ height }} />
             <div className="mt-1 bg-secondary rounded-md h-[8px]" />
         </div>
@@ -368,7 +395,9 @@ function useDebounce<T>(value: T, delay: number) {
     const [debouncedValue, setDebouncedValue] = useState<T>(value)
 
     useEffect(() => {
-        const debounce = setTimeout(() => setDebouncedValue(value), delay)
+        const debounce = setTimeout(() => {
+            setDebouncedValue(value)
+        }, delay)
 
         return () => {
             clearTimeout(debounce)
