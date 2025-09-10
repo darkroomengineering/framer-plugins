@@ -151,6 +151,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@crowdin/crowdin-api-client@npm:^1.46.0":
+  version: 1.46.2
+  resolution: "@crowdin/crowdin-api-client@npm:1.46.2"
+  dependencies:
+    axios: "npm:^1"
+  checksum: 10/7dcf12af76a302514926f723108d245c7d0efd4e875bab858bb14e8e1f8579cd666bba59e867ab56031e827b4d953a11c21990e51a9eea76c0d48d7177c9c50d
+  languageName: node
+  linkType: hard
+
 "@emnapi/core@npm:^1.4.3":
   version: 1.4.3
   resolution: "@emnapi/core@npm:1.4.3"
@@ -3283,7 +3292,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.8.3":
+"axios@npm:^1, axios@npm:^1.8.3":
   version: 1.11.0
   resolution: "axios@npm:1.11.0"
   dependencies:
@@ -3685,6 +3694,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "crowdin@workspace:plugins/crowdin"
   dependencies:
+    "@crowdin/crowdin-api-client": "npm:^1.46.0"
     "@types/react": "npm:^18.3.23"
     "@types/react-dom": "npm:^18.3.7"
     framer-plugin: "npm:^3.3.2"
