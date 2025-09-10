@@ -1,5 +1,5 @@
-import { framer, type Locale, useIsAllowedTo } from "framer-plugin"
-import { useCallback, useEffect, useState } from "react"
+import { framer, type Locale, type LocalizationGroup, useIsAllowedTo } from "framer-plugin"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import "./App.css"
 import { ProjectsGroups, Translations } from "@crowdin/crowdin-api-client"
 import hero from "./assets/hero.png"
@@ -26,15 +26,23 @@ interface CrowdinStorageResponse {
 }
 
 // ----- App component -----
-export function App() {
+export function App({
+    activeLocale,
+    locales,
+    groups,
+}: {
+    activeLocale: Locale | null
+    locales: readonly Locale[]
+    groups: readonly LocalizationGroup[]
+}) {
+    console.log({ activeLocale, locales, groups })
+
     const isAllowedToSetLocalizationData = useIsAllowedTo("setLocalizationData")
 
     const [accessToken, setAccessToken] = useState<string>("")
     const [projectList, setProjectList] = useState<readonly Project[]>([])
     const [projectId, setProjectId] = useState<number>(0)
     const [isLoading, setIsLoading] = useState(false)
-
-    const [activeLocale, setActiveLocale] = useState<Locale | null>(null)
 
     const validateAccessToken = useCallback(async (token: string) => {
         setAccessToken(token)
@@ -50,9 +58,10 @@ export function App() {
                 .withFetchAll()
                 .listProjects()
                 .then(response => {
-                    const projects = response.data.map((item: { data: Project }) => ({
-                        id: item.data.id,
-                        name: item.data.name,
+                    console.log(response.data)
+                    const projects = response.data.map(({ data }: { data: Project }) => ({
+                        id: data.id,
+                        name: data.name,
                     }))
                     setProjectList(projects)
                 })
@@ -79,18 +88,14 @@ export function App() {
         void loadStoredToken()
     }, [validateAccessToken])
 
+    // const crowdinClient = new crowdin({
+    //     token: accessToken,
+    // })
+
     const createCrowdinClient = (token: string) => ({
         projects: new ProjectsGroups({ token }),
         translations: new Translations({ token }),
     })
-
-    useEffect(() => {
-        async function fetchActiveLocale() {
-            const locale = await framer.getActiveLocale()
-            if (locale) setActiveLocale(locale)
-        }
-        void fetchActiveLocale()
-    }, [])
 
     // ------------------ Import from Crowdin ------------------
     async function importFromCrowdIn() {
@@ -103,7 +108,8 @@ export function App() {
 
         setIsLoading(true)
         const client = createCrowdinClient(accessToken)
-        const locales = await framer.getLocales()
+
+        console.log(client.translations)
 
         try {
             const exportRes = await client.translations.exportProjectTranslation(projectId, {
@@ -119,6 +125,8 @@ export function App() {
             }
             const resp = await fetch(url)
             const fileContent = await resp.text()
+
+            console.log(fileContent)
 
             const translationsResult = fileContent.includes('<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0"')
                 ? parseXliff20(fileContent, locales)
@@ -137,6 +145,7 @@ export function App() {
                         needsReview: true,
                     }
                 })
+                console.log(targetLocale.id, updates)
                 await framer.setLocalizationData({ [targetLocale.id]: updates })
                 framer.notify(`Imported ${Object.keys(valuesBySource).length} strings`, {
                     variant: "success",
@@ -162,6 +171,7 @@ export function App() {
         setIsLoading(true)
         try {
             const xliffContent = await getTranslationFileContent(activeLocale)
+            console.log({ xliffContent })
             if (!xliffContent) {
                 framer.notify("No translation content found for active locale", {
                     variant: "error",
