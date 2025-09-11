@@ -166,7 +166,7 @@ export function generateXliff(
     const groups = localizationGroups.map(localizationGroup => generateGroup(localizationGroup, targetLocale))
 
     return `<?xml version="1.0" encoding="UTF-8"?>
-<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="${defaultLocale.code}" trgLang="${targetLocale.code}" source-language="${defaultLocale.code}">
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="${defaultLocale.code}" trgLang="${targetLocale.code}">
     <file id="${targetLocale.id}">
 ${groups.join("\n")}
     </file>
