@@ -97,7 +97,7 @@ function statusToXliffState(status: LocalizedValueStatus): "new" | "needs-transl
         case "done":
             return "translated"
         case "warning":
-            // Crowdin doesnâ€™t know â€œwarningâ€, map it to translated but we can add subState note
+            // Crowdin doesn’t know “warning”, map it to translated but we can add subState note
             return "translated"
         default:
             return "new"
