@@ -16,7 +16,7 @@
     },
     "dependencies": {
         "clsx": "^2.1.1",
-        "diff": "^8.0.2",
+        "diff": "^9.0.0",
         "framer-plugin": "3.7.0-alpha.0",
         "p-retry": "^7.0.0",
         "prismjs": "^1.30.0",
@@ -34,7 +34,7 @@
         "@types/react": "^18.3.24",
         "@types/react-dom": "^18.3.7",
         "@vitest/ui": "^3.2.4",
-        "happy-dom": "^18.0.1",
-        "vitest": "^3.2.4"
+        "happy-dom": "^20.11.1",
+        "vitest": "^4.1.10"
     }
 }
